@@ -45,6 +45,7 @@ test("validateRecoveryManifest rejects unsafe capsule paths", () => {
     "../secrets/plaintext.txt",
     "C:/tmp/file.zdcapsule",
     "C:\\tmp\\file.zdcapsule",
+    "C:tmp/file.zdcapsule",
   ]) {
     const result = validateRecoveryManifest({
       version: 1,
