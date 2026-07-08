@@ -41,20 +41,26 @@ test("parseRecoveryManifest accepts JSON bytes", () => {
 });
 
 test("validateRecoveryManifest rejects unsafe capsule paths", () => {
-  const result = validateRecoveryManifest({
-    version: 1,
-    app: "zerodrive",
-    createdAt: "2026-07-09T00:00:00.000Z",
-    items: [
-      {
-        ...item,
-        capsulePath: "../secrets/plaintext.txt",
-      },
-    ],
-  });
+  for (const capsulePath of [
+    "../secrets/plaintext.txt",
+    "C:/tmp/file.zdcapsule",
+    "C:\\tmp\\file.zdcapsule",
+  ]) {
+    const result = validateRecoveryManifest({
+      version: 1,
+      app: "zerodrive",
+      createdAt: "2026-07-09T00:00:00.000Z",
+      items: [
+        {
+          ...item,
+          capsulePath,
+        },
+      ],
+    });
 
-  assert.equal(result.ok, false);
-  assert.match(result.issues[0]?.message || "", /safe relative path/);
+    assert.equal(result.ok, false);
+    assert.match(result.issues[0]?.message || "", /safe relative path/);
+  }
 });
 
 test("validateRecoveryManifest rejects duplicate item ids", () => {

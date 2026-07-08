@@ -70,6 +70,7 @@ function isSafeRelativePath(path: string): boolean {
     path.length === 0 ||
     path.startsWith("/") ||
     path.startsWith("\\") ||
+    /^[A-Za-z]:[\\/]/.test(path) ||
     path.includes("\0") ||
     path.includes("://")
   ) {
