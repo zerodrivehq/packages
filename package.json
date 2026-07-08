@@ -1,0 +1,21 @@
+{
+  "name": "zerodrivehq-packages",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "description": "Reusable ZeroDrive privacy and recovery packages",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=11.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.0",
+    "typescript": "^5.3.2"
+  }
+}
