@@ -2,6 +2,7 @@
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "declaration": true,
+    "declarationMap": true,
     "exactOptionalPropertyTypes": true,
     "isolatedModules": true,
     "lib": ["ES2023", "DOM"],
@@ -13,6 +14,7 @@
     "noUncheckedIndexedAccess": true,
     "strict": true,
     "target": "ES2023",
+    "types": ["node"],
     "verbatimModuleSyntax": true
   }
 }

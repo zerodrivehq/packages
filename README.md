@@ -1,29 +1,41 @@
 # ZeroDrive packages
 
-Reusable privacy and recovery packages for ZeroDrive.
-
-This repository is intentionally separate from the main ZeroDrive app. The app owns product flows, authentication, storage providers, database state, and UI. This repository owns reusable package code that can be used by ZeroDrive and by future tools without carrying the whole app.
+Small, auditable packages for recovering personal files encrypted by ZeroDrive and stored in a user's Google Drive.
 
 ## Packages
 
-```txt
-packages/recovery
-```
+### `@zerodrivehq/capsule`
 
-`@zerodrivehq/recovery` defines recovery manifests and restore orchestration helpers. It does not upload, download, decrypt capsules itself, or depend on a storage provider.
+Pure decryption primitives compatible with the current ZeroDrive personal-file format. It derives the same AES-256-GCM key as the web app from a BIP39 recovery phrase and authenticates/decrypts downloaded encrypted bytes.
 
-Planned next package:
+### `@zerodrivehq/recovery`
 
-```txt
-packages/capsule
-```
-
-`@zerodrivehq/capsule` will own the portable encrypted capsule format.
-
-## Commands
+A local, offline command-line interface built on the capsule package:
 
 ```bash
-pnpm test
-pnpm typecheck
-pnpm build
+npx @zerodrivehq/recovery decrypt ./downloaded-file.zd --out ./recovered-file.pdf
 ```
+
+The CLI prompts for the recovery phrase using hidden terminal input. It does not accept phrases through arguments or environment variables and does not contact Google Drive, ZeroDrive, or any other server.
+
+## Boundaries
+
+This repository does not contain Google Drive clients, database access, shared-file recovery, RSA key recovery, UI code, telemetry, or hosted-service integration. The user downloads the encrypted personal file before running the CLI.
+
+## Development
+
+Node.js 24 and pnpm 11.7 are required.
+
+```bash
+pnpm install
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm pack:check
+```
+
+`dist/` is generated for npm packages and is not committed.
+
+## Publishing order
+
+Both packages start at `0.1.0`. Publish `@zerodrivehq/capsule` before `@zerodrivehq/recovery`, because the CLI depends on the capsule package.
