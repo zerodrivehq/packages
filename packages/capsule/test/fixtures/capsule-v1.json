@@ -1,0 +1,37 @@
+{
+  "format": "ZDCP",
+  "version": 1,
+  "recoveryPhrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  "vectors": [
+    {
+      "name": "text",
+      "plaintextBase64": "WmVyb0RyaXZlIGNhcHN1bGUgdjEgY29tcGF0aWJpbGl0eSB2ZWN0b3I=",
+      "capsuleBase64": "WkRDUAEBAAEAAABsAAAAUQAAADkAKAAAYk8/keTPDiGav6HwuZjizE2sFR2blPF1MKBj5WaPIKclVpzbJVA6nwAAAAD0YKKES0LVQJ9rIe3uGVOrQgW8OEXrA5F6rojvMOe43mWP+ya5RbyC3lbfyTmUw0x8YPX7eA7HAG1+KxVP8pzDbkXR3eFtFZUNR13OtldCOEgGpRgVlyh8aqAYIuJvjLHaTIZ4OEnyseQ0xKU0kEumQeJPUr+Whj60/oHSWP9oC42G0YvLEYHgiPFWtym7OXg4Z7P1kUsDJGfWU9x30AgJJUn74ASjFhWPVj9TKvf51mh+",
+      "metadata": {
+        "name": "text.bin",
+        "mimeType": "text/plain",
+        "size": 41
+      }
+    },
+    {
+      "name": "binary",
+      "plaintextBase64": "AAECf4D+/w==",
+      "capsuleBase64": "WkRDUAEBAAEAAABsAAAAYAAAABcAKAAALOA4hOupUdg3Cfkq5tDv+B7PAjBwr7FZkaeik4wXeaXPjrfXyvYX0AAAAADv82GkluWNqRH9iIWRGgXRljbEyppPiDSv6fqjEIvuImiZCv361Lj1KukwLOsvRpmN9qp6eOR+MNPllR6GbyQiHIjThwlqVQoGyTdZuT4r2ZUv9zHkM5Ul7au+4qvUQSOjHiWtP96Iwou6AGCoQFGAW43ha3o4C4HoAEbcDK7c39iwaM4Vv1BKAtsMnnQQZvd2OiuP98YtKhjVtRBJl7A=",
+      "metadata": {
+        "name": "binary.bin",
+        "mimeType": "application/octet-stream",
+        "size": 7
+      }
+    },
+    {
+      "name": "empty",
+      "plaintextBase64": "",
+      "capsuleBase64": "WkRDUAEBAAEAAABsAAAAXwAAABAAKAAAdoSTtcTuBEvmFSnmoS+llV9urrxt4qx3ObYykS42NaYgjKuGn8Wj7QAAAADSlZi39shVjxU3qmhKmwYa6YvlXVZOxOE7ZhsSB195uL1YANjR+i6qR7T1XHIpvQ7Qaa/VTnhfETu58PtRCKq4VJMVmHolhXvkKbfTPHyaP8Czoxcf9pEuTsGcDIyVQX3eH4S/uQuodKeI1y21e9bm5WcGdU2h663dBmoMcQFeg2FY0x9c0L4ts6DyRZkTS14UJILtK3sq",
+      "metadata": {
+        "name": "empty.bin",
+        "mimeType": "application/octet-stream",
+        "size": 0
+      }
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "@zerodrivehq/recovery",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Offline recovery CLI for ZeroDrive personal files",
   "type": "module",
   "bin": {
