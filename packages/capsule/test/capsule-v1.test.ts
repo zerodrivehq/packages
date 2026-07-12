@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  CAPSULE_MAGIC,
   CAPSULE_MAX_METADATA_BYTES,
   CapsuleError,
   createCapsule,
@@ -69,6 +70,23 @@ test("generates and validates a 12-word recovery phrase", () => {
   assert.equal(phrase.split(" ").length, 12);
   assert.equal(validateRecoveryPhrase(phrase), true);
   assert.equal(validateRecoveryPhrase("not a phrase"), false);
+});
+
+test("exposes immutable capsule magic without sharing formatter bytes", async () => {
+  assert.equal(CAPSULE_MAGIC, "ZDCP");
+  const created = await createCapsule({
+    plaintext: new Uint8Array(),
+    metadata: {
+      name: "empty.bin",
+      mimeType: "application/octet-stream",
+      size: 0,
+    },
+    recoveryPhrase: PHRASE,
+  });
+  assert.deepEqual(Array.from(created.bytes.slice(0, 4)), [
+    0x5a, 0x44, 0x43, 0x50,
+  ]);
+  assert.equal(isCapsule(created.bytes), true);
 });
 
 test("generates a non-extractable AES-256-GCM data key", async () => {

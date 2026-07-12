@@ -5,7 +5,6 @@ import {
   CAPSULE_GCM_TAG_BYTES,
   CAPSULE_IV_BYTES,
   CAPSULE_KNOWN_FLAGS,
-  CAPSULE_MAGIC,
   CAPSULE_MAX_HEADER_BYTES,
   CAPSULE_MAX_METADATA_BYTES,
   CAPSULE_MAX_RECIPIENTS,
@@ -19,6 +18,8 @@ import {
 import { bytesEqual, bytesToHex, hexToBytes } from "./encoding.js";
 import { CapsuleError } from "./errors.js";
 import type { CapsuleHeader } from "./types.js";
+
+const CAPSULE_MAGIC_BYTES = new Uint8Array([0x5a, 0x44, 0x43, 0x50]);
 
 export interface RecipientEnvelope {
   keyVersion: number;
@@ -64,8 +65,8 @@ function copyBytes(
 
 function hasMagic(bytes: Uint8Array): boolean {
   return (
-    bytes.byteLength >= CAPSULE_MAGIC.byteLength &&
-    CAPSULE_MAGIC.every((value, index) => bytes[index] === value)
+    bytes.byteLength >= CAPSULE_MAGIC_BYTES.byteLength &&
+    CAPSULE_MAGIC_BYTES.every((value, index) => bytes[index] === value)
   );
 }
 
@@ -269,7 +270,7 @@ export function serializeCapsuleHeader(
   if (headerLength > CAPSULE_MAX_HEADER_BYTES) malformed("Capsule header is too large");
 
   const header = new Uint8Array(headerLength);
-  header.set(CAPSULE_MAGIC, 0);
+  header.set(CAPSULE_MAGIC_BYTES, 0);
   const view = new DataView(header.buffer);
   view.setUint8(4, CAPSULE_VERSION);
   view.setUint8(5, CAPSULE_SUITE);

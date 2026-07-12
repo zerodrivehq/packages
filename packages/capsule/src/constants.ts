@@ -1,4 +1,4 @@
-export const CAPSULE_MAGIC = new Uint8Array([0x5a, 0x44, 0x43, 0x50]);
+export const CAPSULE_MAGIC = "ZDCP";
 export const CAPSULE_VERSION = 1;
 export const CAPSULE_SUITE = 1;
 
