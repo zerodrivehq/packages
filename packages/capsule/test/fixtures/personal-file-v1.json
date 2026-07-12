@@ -1,0 +1,21 @@
+{
+  "recoveryPhrase": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+  "derivedKeyHex": "62a772f85e4be6226108b56c0b1cf935c2490e434adec864fe47b189f1ed517d",
+  "vectors": [
+    {
+      "name": "text",
+      "plaintextBase64": "WmVyb0RyaXZlIG9mZmxpbmUgcmVjb3ZlcnkgY29tcGF0aWJpbGl0eQo=",
+      "encryptedBase64": "AAECAwQFBgcICQoLSgY+SADIxXyrQ5kz3Xa0MMYJEqYY4z55XcvEBwX3pJZ9isLWt073c+FwrrGoLu3LntG9I8+zBPhd"
+    },
+    {
+      "name": "binary",
+      "plaintextBase64": "AAECA3+A/v8=",
+      "encryptedBase64": "EBESExQVFhcYGRobj5HRfTLy8gwc42kyT5TCyzkDOJFbjfrJ"
+    },
+    {
+      "name": "empty",
+      "plaintextBase64": "",
+      "encryptedBase64": "ICEiIyQlJicoKSorU2hCVYLCcZB244amqAVC2Q=="
+    }
+  ]
+}

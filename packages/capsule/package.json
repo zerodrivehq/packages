@@ -1,0 +1,41 @@
+{
+  "name": "@zerodrivehq/capsule",
+  "version": "0.1.0",
+  "description": "ZeroDrive personal-file decryption primitives",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zerodrivehq/packages.git",
+    "directory": "packages/capsule"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm test"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "dependencies": {
+    "bip39": "^3.1.0"
+  }
+}
