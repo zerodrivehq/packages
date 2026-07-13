@@ -1,19 +1,15 @@
 # @zerodrivehq/recovery
 
-Offline recovery CLI for personal files encrypted by the ZeroDrive web app and downloaded from Google Drive.
+Offline recovery CLI for ZeroDrive files already downloaded to the local computer.
 
 ```bash
 npx @zerodrivehq/recovery decrypt ./downloaded-file.zd --out ./recovered-file.pdf
 ```
 
-The command prompts for the 12-word recovery phrase using hidden terminal input. It never accepts the phrase as a command argument or environment variable, and it does not make network requests.
+The command detects `ZDCP` capsule v1 files and existing personal-file ciphertext. It asks for the 12-word phrase through hidden interactive terminal input, fully authenticates the file, and only then creates the output with exclusive `0600` permissions. Existing files are never overwritten and partial output is removed after write failures.
 
-The input must already be available on the local computer. The output path is required because existing ZeroDrive encrypted files do not contain authenticated filename or MIME-type metadata. Existing output files are never overwritten.
+The phrase cannot be supplied through command arguments, environment variables, configuration, or a pipe. The CLI performs no network requests and does not sign in to Google Drive or contact ZeroDrive.
 
-## Security boundary
+Legacy personal files do not contain authenticated filename or MIME-type metadata. Capsule v1 does, but `--out` remains explicit and determines the recovered local filename.
 
-This package performs local filesystem and terminal orchestration. Cryptographic compatibility is provided by `@zerodrivehq/capsule`.
-
-It does not include Google Drive access, shared-file recovery, RSA keys, database access, telemetry, or hosted ZeroDrive APIs.
-
-JavaScript strings cannot be reliably erased from memory. The CLI clears mutable key, ciphertext, and plaintext buffers where practical, but users should still run recovery only on a computer they trust.
+JavaScript strings cannot be reliably erased from memory. Mutable ciphertext and plaintext buffers are cleared where practical, but recovery should only be run on a trusted computer.

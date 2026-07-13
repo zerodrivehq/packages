@@ -1,7 +1,7 @@
 {
   "name": "@zerodrivehq/capsule",
-  "version": "0.1.0",
-  "description": "ZeroDrive personal-file decryption primitives",
+  "version": "0.2.0",
+  "description": "Portable encrypted containers and ZeroDrive compatibility primitives",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -28,7 +28,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node --test test/*.test.ts",
+    "test": "pnpm build && node --test test/capsule-v1.test.ts test/legacy-shared.test.ts test/personal-file.test.ts test/private-key-backup.test.ts",
+    "test:browser": "pnpm build && node --test test/browser-compat.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepack": "pnpm test"
   },
@@ -36,6 +37,6 @@
     "node": ">=24.0.0"
   },
   "dependencies": {
-    "bip39": "^3.1.0"
+    "@scure/bip39": "^2.2.0"
   }
 }

@@ -5,12 +5,14 @@ import { parseArgs } from "node:util";
 import {
   CapsuleError,
   decryptPersonalFileWithRecoveryPhrase,
+  isCapsule,
+  openCapsule,
 } from "@zerodrivehq/capsule";
 
 import { writePrivateOutput } from "./output.js";
 import { promptForRecoveryPhrase } from "./prompt.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.1";
 const HELP = `ZeroDrive offline personal-file recovery
 
 Usage:
@@ -75,6 +77,20 @@ function capsuleMessage(error: CapsuleError): string {
       return "Input is not a supported ZeroDrive personal file.";
     case "DECRYPTION_FAILED":
       return "Decryption failed. The recovery phrase may be incorrect or the file may be damaged.";
+    case "CAPSULE_AUTHENTICATION_FAILED":
+    case "CAPSULE_KEY_UNWRAP_FAILED":
+    case "CAPSULE_NO_MATCHING_KEY":
+      return "Decryption failed. The recovery phrase may be incorrect or the file may be damaged.";
+    case "CAPSULE_MALFORMED":
+    case "CAPSULE_METADATA_INVALID":
+    case "CAPSULE_UNSUPPORTED_SUITE":
+    case "CAPSULE_UNSUPPORTED_VERSION":
+      return "Input is not a supported ZeroDrive capsule.";
+    case "CAPSULE_ACCESS_REQUIRED":
+    case "CAPSULE_KEY_INVALID":
+    case "CAPSULE_RECIPIENT_INVALID":
+    case "LEGACY_SHARED_FILE_INVALID":
+      return "Decryption failed.";
   }
   return "Decryption failed.";
 }
@@ -153,10 +169,18 @@ export async function runRecoveryCli(
     }
 
     try {
-      plaintext = await decryptPersonalFileWithRecoveryPhrase(
-        encryptedBytes,
-        recoveryPhrase,
-      );
+      if (isCapsule(encryptedBytes)) {
+        const opened = await openCapsule({
+          capsule: encryptedBytes,
+          recoveryPhrase,
+        });
+        plaintext = opened.plaintext;
+      } else {
+        plaintext = await decryptPersonalFileWithRecoveryPhrase(
+          encryptedBytes,
+          recoveryPhrase,
+        );
+      }
     } catch (error) {
       if (error instanceof CapsuleError) {
         throw new CliError(capsuleMessage(error));

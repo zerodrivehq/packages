@@ -1,4 +1,5 @@
-import * as bip39 from "bip39";
+import { mnemonicToSeedWebcrypto, validateMnemonic } from "@scure/bip39";
+import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
 
 import { CapsuleError } from "./errors.js";
 
@@ -15,16 +16,15 @@ export async function derivePersonalFileKey(
   recoveryPhrase: string,
 ): Promise<CryptoKey> {
   const normalized = normalizeRecoveryPhrase(recoveryPhrase);
-  if (!bip39.validateMnemonic(normalized)) {
+  if (!validateMnemonic(normalized, englishWordlist)) {
     throw new CapsuleError(
       "INVALID_RECOVERY_PHRASE",
       "Recovery phrase is invalid",
     );
   }
 
-  const seed = bip39.mnemonicToSeedSync(normalized);
-  const seedBytes = new Uint8Array(seed.byteLength);
-  seedBytes.set(seed);
+  const seed = await mnemonicToSeedWebcrypto(normalized);
+  const seedBytes = Uint8Array.from(seed);
   let keyBytes: Uint8Array<ArrayBuffer> | undefined;
 
   try {

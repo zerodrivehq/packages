@@ -1,24 +1,43 @@
 # @zerodrivehq/capsule
 
-Decryption primitives for personal files produced by the current ZeroDrive web app.
+Storage-independent encrypted containers and ZeroDrive compatibility primitives for Node.js and modern browsers.
 
 ```ts
 import {
-  decryptPersonalFileWithRecoveryPhrase,
+  createCapsule,
+  generateRecoveryPhrase,
+  openCapsule,
 } from "@zerodrivehq/capsule";
 
-const plaintext = await decryptPersonalFileWithRecoveryPhrase(
-  encryptedBytes,
+const recoveryPhrase = generateRecoveryPhrase();
+const plaintext = new TextEncoder().encode("private contents");
+const created = await createCapsule({
+  plaintext,
+  metadata: {
+    name: "note.txt",
+    mimeType: "text/plain",
+    size: plaintext.byteLength,
+  },
   recoveryPhrase,
-);
+});
+
+const opened = await openCapsule({
+  capsule: created.bytes,
+  recoveryPhrase,
+});
 ```
 
-The v0.1 compatibility format is the existing personal-file layout:
+Each capsule uses a fresh AES-256-GCM data key. Metadata and content are encrypted separately, and the complete header and key-envelope table are authenticated as additional data. Access can be granted to an owner phrase, up to 64 versioned RSA-OAEP SHA-256 recipients, or both.
 
-```txt
-12-byte AES-GCM IV | ciphertext | 16-byte authentication tag
-```
+The package also exports:
 
-The AES-256-GCM key is derived exactly as it is in the ZeroDrive web app: the BIP39 mnemonic is converted to its seed and the seed is hashed with SHA-256.
+- recovery phrase validation and generation
+- AES data-key and RSA recipient-key generation
+- canonical public-key fingerprints
+- header detection and parsing
+- owner-only RSA private-key backup capsules
+- read-only legacy personal-file, `ZDSE`, wrapped-key, and Google Drive key-backup readers
 
-This release decrypts personal files only. It does not implement encryption, shared files, RSA keys, manifests, storage providers, filesystem access, telemetry, or network access.
+New code never emits RSA-OAEP SHA-1. It is accepted only when a legacy private JWK explicitly identifies that algorithm.
+
+See the repository's `docs/capsule-format-v1.md` for the normative byte format. This package contains no filesystem, storage, OAuth, database, recipient lookup, access-control, expiry, UI, telemetry, or network behavior.

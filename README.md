@@ -1,41 +1,41 @@
 # ZeroDrive packages
 
-Small, auditable packages for recovering personal files encrypted by ZeroDrive and stored in a user's Google Drive.
+Small, auditable cryptographic and offline-recovery packages for ZeroDrive.
 
 ## Packages
 
 ### `@zerodrivehq/capsule`
 
-Pure decryption primitives compatible with the current ZeroDrive personal-file format. It derives the same AES-256-GCM key as the web app from a BIP39 recovery phrase and authenticates/decrypts downloaded encrypted bytes.
+Creates and opens versioned `ZDCP` encrypted containers in Node.js and modern browsers. Capsule v1 supports owner recovery phrases, versioned RSA recipients, authenticated metadata, private-key backups, and read-only compatibility with existing personal and shared ZeroDrive files.
+
+The package operates only on bytes and keys. It has no storage, OAuth, database, filesystem, UI, logging, analytics, or network APIs.
 
 ### `@zerodrivehq/recovery`
 
-A local, offline command-line interface built on the capsule package:
+An offline CLI for files already downloaded to the user's computer:
 
 ```bash
 npx @zerodrivehq/recovery decrypt ./downloaded-file.zd --out ./recovered-file.pdf
 ```
 
-The CLI prompts for the recovery phrase using hidden terminal input. It does not accept phrases through arguments or environment variables and does not contact Google Drive, ZeroDrive, or any other server.
-
-## Boundaries
-
-This repository does not contain Google Drive clients, database access, shared-file recovery, RSA key recovery, UI code, telemetry, or hosted-service integration. The user downloads the encrypted personal file before running the CLI.
+The CLI detects capsule v1 files and existing personal-file ciphertext. It prompts for the recovery phrase using hidden terminal input and never accepts the phrase through arguments, environment variables, or pipes.
 
 ## Development
 
 Node.js 24 and pnpm 11.7 are required.
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm typecheck
 pnpm test
+pnpm exec playwright install chromium
+pnpm test:browser
 pnpm build
 pnpm pack:check
 ```
 
-`dist/` is generated for npm packages and is not committed.
+Generated `dist/` directories are not committed. Format details are in [`docs/capsule-format-v1.md`](docs/capsule-format-v1.md).
 
-## Publishing order
+## Releasing
 
-Both packages start at `0.1.0`. Publish `@zerodrivehq/capsule` before `@zerodrivehq/recovery`, because the CLI depends on the capsule package.
+Both packages are versioned `0.2.0` for this release. After `develop` is merged into `main`, publish `@zerodrivehq/capsule` first and `@zerodrivehq/recovery` second. Feature branches are never published.

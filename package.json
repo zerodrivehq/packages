@@ -8,7 +8,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "pack:check": "node scripts/check-package-contents.mjs",
+    "pack:smoke": "node scripts/smoke-packed-cli.mjs",
     "test": "pnpm -r test",
+    "test:browser": "pnpm --filter @zerodrivehq/capsule test:browser",
     "typecheck": "pnpm -r typecheck"
   },
   "engines": {
@@ -16,7 +18,9 @@
     "pnpm": ">=11.7.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^24.0.0",
+    "esbuild": "^0.28.1",
     "typescript": "^5.9.3"
   }
 }

@@ -1,121 +1,31 @@
-# ZeroDrive offline recovery architecture
+# ZeroDrive capsule and recovery architecture
 
-## Purpose
+## Ownership
 
-The `zerodrivehq/packages` repository owns the smallest reusable surface needed to decrypt personal files created by the ZeroDrive web app. The first release exists so a user can recover a file already downloaded from Google Drive without relying on the hosted website.
+`@zerodrivehq/capsule` owns cryptographic bytes, keys, metadata validation, versioned formats, and read-only legacy compatibility. It is runtime-neutral and works with `Uint8Array`, Web Crypto, and JWK values.
 
-The repository contains two npm packages:
+`@zerodrivehq/recovery` owns the Node.js terminal and local-filesystem workflow. It detects a `ZDCP` magic prefix and calls `openCapsule`; inputs without that prefix use the preserved personal-file decryptor.
 
-```txt
-@zerodrivehq/capsule
-@zerodrivehq/recovery
-```
+The main ZeroDrive application owns OAuth, Google Drive, databases, recipient lookup, invitations, access control, UI, and application state. Those concerns must not enter either package.
 
-The main application remains in `zerodrivehq/zerodrive`. It owns authentication, Google Drive integration, browser storage, uploads, downloads, UI, shared files, and backend coordination.
+## Capsule v1
 
-## Compatibility target
+A fresh random AES-256-GCM key encrypts each capsule's metadata and content with distinct IVs. The complete header and access-envelope table are authenticated by both encrypted sections. The owner receives an AES-KW envelope derived from a BIP39 phrase through HKDF-SHA-256; recipients receive RSA-OAEP SHA-256 envelopes identified by a canonical public-key fingerprint and application-managed key version.
 
-Current personal files use this byte layout:
+The format supports 64 recipients and 64 KiB of authenticated metadata. It is deliberately in-memory. Changing recipients means creating a new capsule; streaming and envelope mutation are follow-up designs. The normative layout is in `docs/capsule-format-v1.md`.
 
-```txt
-12-byte IV | AES-GCM ciphertext | 16-byte authentication tag
-```
+## Compatibility
 
-There is no magic value, version field, filename, or MIME type inside this format. The CLI therefore requires an explicit output path and cannot infer the original file type from encrypted bytes.
+The `0.1.0` personal-file APIs remain unchanged. Their compatibility fixture protects the web-app derivation and `12-byte IV | ciphertext | 16-byte tag` layout.
 
-The personal-file key derivation must remain byte-for-byte compatible with the web app:
+Read-only helpers support existing `ZDSE` shared envelopes, pre-envelope shared ciphertext plus metadata, raw base64 and PostgreSQL-hex wrapped keys, wrapped-key JSON versions 1 and 2, and existing recovery-phrase-encrypted Google Drive RSA backups. RSA-OAEP SHA-1 is used only when an old private JWK explicitly declares it; no new SHA-1 data is generated.
 
-```txt
-BIP39 mnemonic
-  -> BIP39 seed with the default empty passphrase
-  -> SHA-256 digest
-  -> non-extractable AES-256-GCM CryptoKey
-```
+## Security behavior
 
-Changing any derivation input, hash, IV length, tag length, or AES mode would make existing files unrecoverable. Compatibility is protected by committed known-answer vectors rather than round-trip tests alone.
+Parsing is exact and authenticated. Unknown fields, malformed lengths, duplicate access identities, IV reuse, and trailing bytes fail closed. Wrong phrases, wrong recipient keys, and tampering never return plaintext. Temporary mutable seed, key, ciphertext, metadata, and plaintext buffers are cleared where JavaScript permits.
 
-## Package responsibilities
+The recovery CLI requires an interactive hidden prompt, exclusive output creation, restrictive permissions, and full authentication before output creation. It never accepts phrase arguments or environment variables and performs no network requests.
 
-### `@zerodrivehq/capsule`
+## Delivery
 
-The capsule package is storage-agnostic and works with bytes. Its v0.1 public API is:
-
-```ts
-derivePersonalFileKey(recoveryPhrase: string): Promise<CryptoKey>
-
-decryptPersonalFile(
-  encryptedBytes: Uint8Array,
-  key: CryptoKey,
-): Promise<Uint8Array>
-
-decryptPersonalFileWithRecoveryPhrase(
-  encryptedBytes: Uint8Array,
-  recoveryPhrase: string,
-): Promise<Uint8Array>
-```
-
-It normalizes phrase whitespace, validates BIP39 checksums, derives non-extractable keys, enforces the minimum valid payload length, and maps authentication failures to typed errors. It copies IV and ciphertext slices before use so caller-owned input is not mutated, then clears its temporary buffers.
-
-The first release intentionally does not encrypt new files or define a new versioned envelope. It implements recovery compatibility for personal files that already exist.
-
-### `@zerodrivehq/recovery`
-
-The recovery package is a Node.js CLI:
-
-```txt
-zerodrive-recovery decrypt <input> --out <output>
-```
-
-Its responsibilities are limited to argument validation, local file I/O, an interactive hidden prompt, invoking the capsule package, and writing authenticated plaintext with restrictive permissions.
-
-The CLI refuses non-interactive execution, same input/output paths, non-file inputs, and existing output paths. It creates output with exclusive-create semantics and mode `0600`, syncs it, and removes partial output after a write failure. Mutable ciphertext and plaintext buffers are cleared in `finally` blocks.
-
-The recovery phrase is never accepted from an argument, environment variable, config file, or pipe. JavaScript strings cannot be reliably erased, so documentation must not claim perfect memory zeroization.
-
-## Repository layout
-
-```txt
-packages/
-  capsule/
-    src/
-    test/
-    package.json
-  recovery/
-    src/
-    test/
-    package.json
-scripts/
-  check-package-contents.mjs
-.github/workflows/ci.yml
-```
-
-Both packages publish ESM JavaScript, declarations, declaration maps, and source maps from generated `dist/` directories. Source, tests, and fixtures are not included in npm tarballs. Package-content checks also verify that pnpm rewrites the workspace dependency to `^0.1.0`.
-
-## Security boundary
-
-The trusted inputs are the user's recovery phrase and local encrypted file. Recovery runs entirely on the user's computer. Neither package performs network requests or includes telemetry.
-
-The CLI cannot distinguish a wrong but valid mnemonic from modified ciphertext because both correctly fail AES-GCM authentication. Its error message deliberately reports both possibilities.
-
-Dependencies are kept narrow:
-
-- `bip39` provides the derivation behavior already used by the web app.
-- `@inquirer/prompts` provides hidden interactive terminal input.
-- Node.js supplies WebCrypto, argument parsing, and filesystem primitives.
-
-## Explicitly out of scope
-
-- Google Drive OAuth, listing, or downloading
-- hosted ZeroDrive APIs or database records
-- recovery manifests or account-wide export formats
-- shared files, recipient key wrapping, and RSA private keys
-- browser UI and application state
-- accepting raw AES keys in the CLI
-- overwriting output files
-- publishing packages as part of feature development
-
-## Verification and release
-
-CI runs on Node.js 24 and performs a frozen install, strict typechecking, known-answer and failure-mode tests, production builds, and tarball inspection.
-
-Before release, both tarballs should also be installed together in a temporary project and the packed CLI should be exercised against the public compatibility fixture. Publication order is capsule first, then recovery.
+Both packages build ESM, declarations, and source maps into untracked `dist/` directories. CI performs a frozen install, typechecking, Node and Chromium compatibility tests, builds, and tarball verification. Release `0.2.0` only after `develop` reaches `main`, with capsule published before recovery.

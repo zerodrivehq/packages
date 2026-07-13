@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
+import { createCapsule } from "../../capsule/dist/index.js";
 import { runRecoveryCli } from "../dist/main.js";
 
 interface Fixture {
@@ -78,6 +79,35 @@ test("recovers a downloaded personal file without exposing the phrase", async ()
   }
 });
 
+test("detects and recovers a capsule v1 file", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "zerodrive-recovery-test-"));
+  const input = join(directory, "document.zdcp");
+  const output = join(directory, "document.txt");
+  const plaintext = new TextEncoder().encode("recovered from capsule v1");
+  const created = await createCapsule({
+    plaintext,
+    metadata: {
+      name: "document.txt",
+      mimeType: "text/plain",
+      size: plaintext.byteLength,
+    },
+    recoveryPhrase: fixture.recoveryPhrase,
+  });
+  await writeFile(input, created.bytes);
+
+  const capture = createIo();
+  assert.equal(
+    await runRecoveryCli(["decrypt", input, "--out", output], capture.io),
+    0,
+  );
+  assert.deepEqual(await readFile(output), Buffer.from(plaintext));
+  assert.equal(capture.result().prompts, 1);
+  assert.doesNotMatch(capture.result().stdout, new RegExp(fixture.recoveryPhrase));
+  if (process.platform !== "win32") {
+    assert.equal((await stat(output)).mode & 0o777, 0o600);
+  }
+});
+
 test("shows help and version without prompting", async () => {
   for (const argument of ["--help", "--version"]) {
     const capture = createIo();
@@ -85,6 +115,10 @@ test("shows help and version without prompting", async () => {
     assert.equal(capture.result().prompts, 0);
     assert.equal(capture.result().stderr, "");
   }
+
+  const version = createIo();
+  assert.equal(await runRecoveryCli(["--version"], version.io), 0);
+  assert.equal(version.result().stdout, "0.2.1\n");
 });
 
 test("rejects missing arguments and any phrase argument", async () => {
