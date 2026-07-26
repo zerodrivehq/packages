@@ -6,7 +6,9 @@ import {
 } from "./keys.js";
 import type {
   OpenedLegacySharedFile,
+  OpenedLegacySharedMetadata,
   OpenLegacySharedFileInput,
+  OpenLegacySharedMetadataInput,
 } from "./types.js";
 
 const SHARED_MAGIC = new Uint8Array([0x5a, 0x44, 0x53, 0x45]);
@@ -264,9 +266,17 @@ async function decryptSharedEnvelope(
   }
 }
 
-export async function openLegacySharedFile(
-  input: OpenLegacySharedFileInput,
-): Promise<OpenedLegacySharedFile> {
+interface LegacyWrappedKeyAccess {
+  wrappedFileKey: string;
+  privateKeyJwk?: JsonWebKey;
+  privateKey?: CryptoKey;
+  keyVersion?: number;
+}
+
+async function withLegacyFileKey<T>(
+  input: LegacyWrappedKeyAccess,
+  operation: (fileKey: CryptoKey, wrappedKeyVersion?: number) => Promise<T>,
+): Promise<T> {
   const wrapped = parseWrappedKey(input.wrappedFileKey);
   try {
     if (
@@ -322,44 +332,7 @@ export async function openLegacySharedFile(
           false,
           ["decrypt"],
         );
-        if (isLegacySharedEnvelope(input.encryptedFile)) {
-          return await decryptSharedEnvelope(
-            input.encryptedFile,
-            fileKey,
-            input.keyVersion ?? wrapped.keyVersion,
-          );
-        }
-        if (input.encryptedFile.byteLength < 28) {
-          throw new CapsuleError(
-            "LEGACY_SHARED_FILE_INVALID",
-            "Legacy shared file is truncated",
-          );
-        }
-        let plaintext: Uint8Array | undefined;
-        try {
-          plaintext = new Uint8Array(
-            await crypto.subtle.decrypt(
-              {
-                name: "AES-GCM",
-                iv: copyBytes(input.encryptedFile, 0, 12),
-              },
-              fileKey,
-              copyBytes(input.encryptedFile, 12),
-            ),
-          );
-          const metadata = input.encryptedMetadata
-            ? await decryptSeparateMetadata(input.encryptedMetadata, fileKey)
-            : {
-                name: input.fallbackMetadata?.name ?? "recovered-file",
-                mimeType:
-                  input.fallbackMetadata?.mimeType ?? "application/octet-stream",
-              };
-          const result = { plaintext, metadata };
-          plaintext = undefined;
-          return result;
-        } finally {
-          plaintext?.fill(0);
-        }
+        return await operation(fileKey, wrapped.keyVersion);
       } finally {
         keyBytes.fill(0);
       }
@@ -375,4 +348,57 @@ export async function openLegacySharedFile(
   } finally {
     wrapped.ciphertext.fill(0);
   }
+}
+
+export async function openLegacySharedMetadata(
+  input: OpenLegacySharedMetadataInput,
+): Promise<OpenedLegacySharedMetadata> {
+  return withLegacyFileKey(input, async (fileKey) => ({
+    metadata: await decryptSeparateMetadata(input.encryptedMetadata, fileKey),
+  }));
+}
+
+export async function openLegacySharedFile(
+  input: OpenLegacySharedFileInput,
+): Promise<OpenedLegacySharedFile> {
+  return withLegacyFileKey(input, async (fileKey, wrappedKeyVersion) => {
+    if (isLegacySharedEnvelope(input.encryptedFile)) {
+      return decryptSharedEnvelope(
+        input.encryptedFile,
+        fileKey,
+        input.keyVersion ?? wrappedKeyVersion,
+      );
+    }
+    if (input.encryptedFile.byteLength < 28) {
+      throw new CapsuleError(
+        "LEGACY_SHARED_FILE_INVALID",
+        "Legacy shared file is truncated",
+      );
+    }
+    let plaintext: Uint8Array | undefined;
+    try {
+      plaintext = new Uint8Array(
+        await crypto.subtle.decrypt(
+          {
+            name: "AES-GCM",
+            iv: copyBytes(input.encryptedFile, 0, 12),
+          },
+          fileKey,
+          copyBytes(input.encryptedFile, 12),
+        ),
+      );
+      const metadata = input.encryptedMetadata
+        ? await decryptSeparateMetadata(input.encryptedMetadata, fileKey)
+        : {
+            name: input.fallbackMetadata?.name ?? "recovered-file",
+            mimeType:
+              input.fallbackMetadata?.mimeType ?? "application/octet-stream",
+          };
+      const result = { plaintext, metadata };
+      plaintext = undefined;
+      return result;
+    } finally {
+      plaintext?.fill(0);
+    }
+  });
 }

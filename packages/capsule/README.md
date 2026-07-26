@@ -29,12 +29,15 @@ Applications should use the high-level adapters for ZeroDrive workflows:
 - `createZeroDrivePersonalFileCapsule` and `openZeroDrivePersonalFile`
 - `createZeroDriveVaultIndexCapsule` and `openZeroDriveVaultIndex`
 - `createZeroDriveSharedFileCapsule` and `openZeroDriveSharedFile`
+- `createZeroDriveSharedMetadataCapsule` and `openZeroDriveSharedMetadataCapsule`
 - `createZeroDriveSharingKeyBackup` and `openZeroDriveSharingKeyBackup`
 - `deriveZeroDriveLegacyVaultKey` for read-only legacy recovery
 
 All binary inputs and outputs are `Uint8Array`. Callers decide whether those bytes live in Google Drive, another object store, a database, or memory. The package does not use `File`, `Blob`, filesystem, or network APIs.
 
 New personal files and vault indexes use owner recovery. New shared files use versioned RSA recipients and do not require the sender's recovery phrase. Shared-file adapters accept public and private JWK objects directly, so callers do not import, export, or select legacy RSA algorithms themselves; an existing private `CryptoKey` may also be supplied when available. The open APIs detect capsule v1 by its authenticated header and otherwise invoke the appropriate legacy reader. Results include the detected `ZeroDriveEncryptedFormat`.
+
+Shared metadata can be stored as a small recipient-encrypted capsule when an application needs to render an inbox without downloading the full encrypted file. The metadata opener also reads ZeroDrive's legacy separately encrypted share metadata when its wrapped file key is supplied.
 
 Legacy compatibility covers:
 

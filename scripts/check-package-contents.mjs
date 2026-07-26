@@ -65,9 +65,9 @@ try {
     }
     if (
       packageJson.name === "@zerodrivehq/recovery" &&
-      packageJson.dependencies?.["@zerodrivehq/capsule"] !== "^0.3.0"
+      packageJson.dependencies?.["@zerodrivehq/capsule"] !== "^0.4.0"
     ) {
-      throw new Error("Packed recovery dependency is not ^0.3.0");
+      throw new Error("Packed recovery dependency is not ^0.4.0");
     }
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "@zerodrivehq/capsule",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Portable encrypted containers and ZeroDrive compatibility primitives",
   "type": "module",
   "main": "./dist/index.js",
