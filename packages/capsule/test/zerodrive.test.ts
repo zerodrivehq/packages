@@ -215,16 +215,12 @@ test("creates and opens capsule and legacy vault indexes", async () => {
   );
 });
 
-test("creates shared capsules and opens them with non-extractable private keys", async () => {
+test("creates and opens shared capsules directly with recipient JWKs", async () => {
   const [recipient, wrongRecipient] = await Promise.all([
     generateRecipientKeyPair(),
     generateRecipientKeyPair(),
   ]);
-  const [publicKey, privateKey, wrongPrivateKey] = await Promise.all([
-    importPublicKey(recipient.publicKeyJwk),
-    importPrivateKey(recipient.privateKeyJwk),
-    importPrivateKey(wrongRecipient.privateKeyJwk),
-  ]);
+  const privateKey = await importPrivateKey(recipient.privateKeyJwk);
   const fingerprint = await fingerprintPublicKey(recipient.publicKeyJwk);
   const content = new TextEncoder().encode("new shared capsule");
   const metadata = {
@@ -235,30 +231,44 @@ test("creates shared capsules and opens them with non-extractable private keys",
   const capsule = await createZeroDriveSharedFileCapsule({
     content,
     metadata,
-    recipients: [{ publicKey, fingerprint, keyVersion: 6 }],
+    recipients: [
+      {
+        publicKeyJwk: jsonObject(recipient.publicKeyJwk),
+        fingerprint,
+        keyVersion: 6,
+      },
+    ],
   });
   const opened = await openZeroDriveSharedFile({
     encryptedBytes: capsule,
-    recipientPrivateKeys: [privateKey],
+    recipientPrivateKeyJwks: [
+      { privateKeyJwk: jsonObject(recipient.privateKeyJwk) },
+    ],
   });
   assert.deepEqual(opened.content, content);
   assert.deepEqual(opened.metadata, metadata);
   assert.equal(opened.format, ZERO_DRIVE_FORMATS.CAPSULE_V1);
+
+  const openedWithCryptoKey = await openZeroDriveSharedFile({
+    encryptedBytes: capsule,
+    recipientPrivateKeys: [privateKey],
+  });
+  assert.deepEqual(openedWithCryptoKey.content, content);
+
   await assert.rejects(
     openZeroDriveSharedFile({
       encryptedBytes: capsule,
-      recipientPrivateKeys: [wrongPrivateKey],
+      recipientPrivateKeyJwks: [
+        { privateKeyJwk: jsonObject(wrongRecipient.privateKeyJwk) },
+      ],
     }),
-    expectCode("CAPSULE_KEY_UNWRAP_FAILED"),
+    expectCode("CAPSULE_NO_MATCHING_KEY"),
   );
 });
 
 test("opens legacy ZDSE and pre-ZDSE shares through the high-level API", async () => {
   const recipient = await generateRecipientKeyPair();
-  const [publicKey, privateKey] = await Promise.all([
-    importPublicKey(recipient.publicKeyJwk),
-    importPrivateKey(recipient.privateKeyJwk),
-  ]);
+  const publicKey = await importPublicKey(recipient.publicKeyJwk);
   const fingerprint = await fingerprintPublicKey(recipient.publicKeyJwk);
 
   for (const preZdse of [false, true]) {
@@ -270,7 +280,12 @@ test("opens legacy ZDSE and pre-ZDSE shares through the high-level API", async (
     });
     const opened = await openZeroDriveSharedFile({
       encryptedBytes: fixture.encryptedBytes,
-      recipientPrivateKeys: [privateKey],
+      recipientPrivateKeyJwks: [
+        {
+          privateKeyJwk: jsonObject(recipient.privateKeyJwk),
+          keyVersion: 3,
+        },
+      ],
       legacy: {
         encryptedFileKey: fixture.encryptedFileKey,
         ...(fixture.encryptedMetadata === undefined
@@ -282,6 +297,40 @@ test("opens legacy ZDSE and pre-ZDSE shares through the high-level API", async (
     assert.deepEqual(opened.metadata, fixture.metadata);
     assert.equal(opened.format, ZERO_DRIVE_FORMATS.LEGACY_SHARED_ZDSE);
   }
+});
+
+test("imports explicitly marked SHA-1 legacy private JWKs internally", async () => {
+  const pair = await crypto.subtle.generateKey(
+    {
+      name: "RSA-OAEP",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-1",
+    },
+    true,
+    ["encrypt", "decrypt"],
+  );
+  const [publicKeyJwk, privateKeyJwk] = await Promise.all([
+    crypto.subtle.exportKey("jwk", pair.publicKey),
+    crypto.subtle.exportKey("jwk", pair.privateKey),
+  ]);
+  assert.equal(privateKeyJwk.alg, "RSA-OAEP");
+  const fixture = await createLegacySharedFixture({
+    publicKey: pair.publicKey,
+    keyVersion: 2,
+    fingerprint: await fingerprintPublicKey(publicKeyJwk),
+    wrappedKeyFormat: "raw",
+  });
+
+  const opened = await openZeroDriveSharedFile({
+    encryptedBytes: fixture.encryptedBytes,
+    recipientPrivateKeyJwks: [
+      { privateKeyJwk: jsonObject(privateKeyJwk), keyVersion: 2 },
+    ],
+    legacy: { encryptedFileKey: fixture.encryptedFileKey },
+  });
+  assert.deepEqual(opened.content, fixture.content);
+  assert.deepEqual(opened.metadata, fixture.metadata);
 });
 
 test("creates and opens versioned sharing-key backup capsules", async () => {

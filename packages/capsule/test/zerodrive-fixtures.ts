@@ -49,6 +49,7 @@ export async function createLegacySharedFixture(input: {
   keyVersion: number;
   fingerprint: string;
   preZdse?: boolean;
+  wrappedKeyFormat?: "raw" | "v2";
 }): Promise<{
   encryptedBytes: Uint8Array;
   encryptedFileKey: string;
@@ -87,14 +88,17 @@ export async function createLegacySharedFixture(input: {
     JSON.stringify({ version: 1, ...metadata }),
   );
 
-  const encryptedFileKey = JSON.stringify({
-    v: 2,
-    keyWrap: "RSA-OAEP-256",
-    contentEncryption: "AES-256-GCM",
-    recipientKeyVersion: input.keyVersion,
-    recipientKeyFingerprint: input.fingerprint,
-    ciphertext: bytesToBase64(wrappedKey),
-  });
+  const encryptedFileKey =
+    input.wrappedKeyFormat === "raw"
+      ? bytesToBase64(wrappedKey)
+      : JSON.stringify({
+          v: 2,
+          keyWrap: "RSA-OAEP-256",
+          contentEncryption: "AES-256-GCM",
+          recipientKeyVersion: input.keyVersion,
+          recipientKeyFingerprint: input.fingerprint,
+          ciphertext: bytesToBase64(wrappedKey),
+        });
 
   if (input.preZdse === true) {
     const fileIv = new Uint8Array(12).fill(11);

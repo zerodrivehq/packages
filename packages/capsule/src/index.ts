@@ -51,6 +51,7 @@ export {
 export {
   createZeroDriveSharedFileCapsule,
   openZeroDriveSharedFile,
+  type ZeroDriveSharedPrivateKey,
   type ZeroDriveSharedRecipient,
 } from "./zerodrive/shared-file.js";
 export {

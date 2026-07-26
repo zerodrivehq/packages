@@ -107,30 +107,16 @@ try {
   }
 
   const recipient = await capsuleModule.generateRecipientKeyPair();
-  const [publicKey, privateKey] = await Promise.all([
-    crypto.subtle.importKey(
-      "jwk",
-      recipient.publicKeyJwk,
-      { name: "RSA-OAEP", hash: "SHA-256" },
-      true,
-      ["encrypt"],
-    ),
-    crypto.subtle.importKey(
-      "jwk",
-      recipient.privateKeyJwk,
-      { name: "RSA-OAEP", hash: "SHA-256" },
-      false,
-      ["decrypt"],
-    ),
-  ]);
   const sharedCapsule = await capsuleModule.createZeroDriveSharedFileCapsule({
     content: personalContent,
     metadata: { name: "shared.txt", mimeType: "text/plain" },
-    recipients: [{ publicKey, keyVersion: 1 }],
+    recipients: [{ publicKeyJwk: recipient.publicKeyJwk, keyVersion: 1 }],
   });
   const openedShared = await capsuleModule.openZeroDriveSharedFile({
     encryptedBytes: sharedCapsule,
-    recipientPrivateKeys: [privateKey],
+    recipientPrivateKeyJwks: [
+      { privateKeyJwk: recipient.privateKeyJwk },
+    ],
   });
   if (!Buffer.from(openedShared.content).equals(Buffer.from(personalContent))) {
     throw new Error("Packed shared-file adapters failed");

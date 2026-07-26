@@ -34,7 +34,7 @@ Applications should use the high-level adapters for ZeroDrive workflows:
 
 All binary inputs and outputs are `Uint8Array`. Callers decide whether those bytes live in Google Drive, another object store, a database, or memory. The package does not use `File`, `Blob`, filesystem, or network APIs.
 
-New personal files and vault indexes use owner recovery. New shared files use versioned RSA recipients and do not require the sender's recovery phrase. The open APIs detect capsule v1 by its authenticated header and otherwise invoke the appropriate legacy reader. Results include the detected `ZeroDriveEncryptedFormat`.
+New personal files and vault indexes use owner recovery. New shared files use versioned RSA recipients and do not require the sender's recovery phrase. Shared-file adapters accept public and private JWK objects directly, so callers do not import, export, or select legacy RSA algorithms themselves; an existing private `CryptoKey` may also be supplied when available. The open APIs detect capsule v1 by its authenticated header and otherwise invoke the appropriate legacy reader. Results include the detected `ZeroDriveEncryptedFormat`.
 
 Legacy compatibility covers:
 
