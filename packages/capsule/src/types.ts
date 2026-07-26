@@ -109,3 +109,15 @@ export interface OpenedLegacySharedFile {
   plaintext: Uint8Array;
   metadata: { name: string; mimeType: string; message?: string };
 }
+
+export interface OpenLegacySharedMetadataInput {
+  encryptedMetadata: string;
+  wrappedFileKey: string;
+  privateKeyJwk?: JsonWebKey;
+  privateKey?: CryptoKey;
+  keyVersion?: number;
+}
+
+export interface OpenedLegacySharedMetadata {
+  metadata: { name: string; mimeType: string; message?: string };
+}

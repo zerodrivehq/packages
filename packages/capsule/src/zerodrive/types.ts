@@ -21,3 +21,10 @@ export interface ZeroDriveVaultIndexResult<
   index: TIndex;
   format: ZeroDriveEncryptedFormat;
 }
+
+export interface ZeroDriveSharedMetadataResult<
+  TMetadata extends JsonObject = JsonObject,
+> {
+  metadata: TMetadata;
+  format: ZeroDriveEncryptedFormat;
+}

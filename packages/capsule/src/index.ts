@@ -55,11 +55,16 @@ export {
   type ZeroDriveSharedRecipient,
 } from "./zerodrive/shared-file.js";
 export {
+  createZeroDriveSharedMetadataCapsule,
+  openZeroDriveSharedMetadataCapsule,
+} from "./zerodrive/shared-metadata.js";
+export {
   createZeroDriveSharingKeyBackup,
   openZeroDriveSharingKeyBackup,
 } from "./zerodrive/sharing-key-backup.js";
 export type {
   ZeroDriveOpenResult,
+  ZeroDriveSharedMetadataResult,
   ZeroDriveVaultIndexResult,
 } from "./zerodrive/types.js";
 export type {
@@ -80,6 +85,8 @@ export type {
   OpenedLegacySharedFile,
   OpenedPrivateKeyBackup,
   OpenLegacySharedFileInput,
+  OpenLegacySharedMetadataInput,
   OpenPrivateKeyBackupInput,
+  OpenedLegacySharedMetadata,
   RecipientKeyPair,
 } from "./types.js";

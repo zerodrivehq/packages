@@ -1,7 +1,7 @@
 import { createCapsule, openCapsule } from "../capsule.js";
 import { CapsuleError } from "../errors.js";
 import { isCapsule } from "../format.js";
-import { openLegacySharedFile } from "../legacy-shared.js";
+import { openLegacySharedMetadata } from "../legacy-shared.js";
 import type { JsonObject } from "../types.js";
 import {
   createZeroDriveCapsuleMetadata,
@@ -15,23 +15,20 @@ import {
   type ZeroDriveSharedPrivateKey,
   type ZeroDriveSharedRecipient,
 } from "./shared-access.js";
-import type { ZeroDriveOpenResult } from "./types.js";
+import type { ZeroDriveSharedMetadataResult } from "./types.js";
 
-const SHARED_FILE_KIND = "zerodrive.shared-file";
+const SHARED_METADATA_KIND = "zerodrive.shared-metadata";
 
-export type { ZeroDriveSharedPrivateKey, ZeroDriveSharedRecipient };
-
-export async function createZeroDriveSharedFileCapsule(input: {
-  content: Uint8Array;
+export async function createZeroDriveSharedMetadataCapsule(input: {
   metadata: JsonObject;
   recipients: ZeroDriveSharedRecipient[];
 }): Promise<Uint8Array> {
   const recipients = await prepareZeroDriveRecipients(input.recipients);
   const created = await createCapsule({
-    plaintext: input.content,
+    plaintext: new Uint8Array(0),
     metadata: createZeroDriveCapsuleMetadata(
-      SHARED_FILE_KIND,
-      input.content.byteLength,
+      SHARED_METADATA_KIND,
+      0,
       input.metadata,
     ),
     recipients,
@@ -39,15 +36,15 @@ export async function createZeroDriveSharedFileCapsule(input: {
   return created.bytes;
 }
 
-export async function openZeroDriveSharedFile(input: {
+export async function openZeroDriveSharedMetadataCapsule(input: {
   encryptedBytes: Uint8Array;
   recipientPrivateKeys?: CryptoKey[];
   recipientPrivateKeyJwks?: ZeroDriveSharedPrivateKey[];
   legacy?: {
     encryptedFileKey: string;
-    encryptedMetadata?: string | null;
+    encryptedMetadata: string;
   };
-}): Promise<ZeroDriveOpenResult> {
+}): Promise<ZeroDriveSharedMetadataResult> {
   if (isCapsule(input.encryptedBytes)) {
     const privateKeys = await prepareZeroDriveCapsulePrivateKeys(
       input.encryptedBytes,
@@ -58,27 +55,30 @@ export async function openZeroDriveSharedFile(input: {
       privateKeys,
       recipientPrivateKeys: input.recipientPrivateKeys ?? [],
     });
-    if (
-      opened.metadata.attributes?.kind !== SHARED_FILE_KIND ||
-      opened.metadata.attributes.version !== 1
-    ) {
+    try {
+      if (
+        opened.plaintext.byteLength !== 0 ||
+        opened.metadata.attributes?.kind !== SHARED_METADATA_KIND ||
+        opened.metadata.attributes.version !== 1
+      ) {
+        throw new CapsuleError(
+          "CAPSULE_METADATA_INVALID",
+          "Capsule is not ZeroDrive shared metadata",
+        );
+      }
+      return {
+        metadata: metadataFromCapsule(opened.metadata),
+        format: ZERO_DRIVE_FORMATS.CAPSULE_V1,
+      };
+    } finally {
       opened.plaintext.fill(0);
-      throw new CapsuleError(
-        "CAPSULE_METADATA_INVALID",
-        "Capsule is not a ZeroDrive shared file",
-      );
     }
-    return {
-      content: opened.plaintext,
-      metadata: metadataFromCapsule(opened.metadata),
-      format: ZERO_DRIVE_FORMATS.CAPSULE_V1,
-    };
   }
 
   if (input.legacy === undefined) {
     throw new CapsuleError(
       "LEGACY_SHARED_FILE_INVALID",
-      "Legacy shared file requires its wrapped file key",
+      "Legacy shared metadata requires its wrapped file key",
     );
   }
   const privateKeyJwks = input.recipientPrivateKeyJwks ?? [];
@@ -92,19 +92,15 @@ export async function openZeroDriveSharedFile(input: {
 
   for (const candidate of privateKeyJwks) {
     try {
-      const opened = await openLegacySharedFile({
-        encryptedFile: input.encryptedBytes,
+      const opened = await openLegacySharedMetadata({
+        encryptedMetadata: input.legacy.encryptedMetadata,
         wrappedFileKey: input.legacy.encryptedFileKey,
         privateKeyJwk: asJsonWebKey(candidate.privateKeyJwk),
         ...(candidate.keyVersion === undefined
           ? {}
           : { keyVersion: candidate.keyVersion }),
-        ...(typeof input.legacy.encryptedMetadata === "string"
-          ? { encryptedMetadata: input.legacy.encryptedMetadata }
-          : {}),
       });
       return {
-        content: opened.plaintext,
         metadata: opened.metadata,
         format: ZERO_DRIVE_FORMATS.LEGACY_SHARED_ZDSE,
       };
@@ -114,16 +110,12 @@ export async function openZeroDriveSharedFile(input: {
   }
   for (const privateKey of privateKeys) {
     try {
-      const opened = await openLegacySharedFile({
-        encryptedFile: input.encryptedBytes,
+      const opened = await openLegacySharedMetadata({
+        encryptedMetadata: input.legacy.encryptedMetadata,
         wrappedFileKey: input.legacy.encryptedFileKey,
         privateKey,
-        ...(typeof input.legacy.encryptedMetadata === "string"
-          ? { encryptedMetadata: input.legacy.encryptedMetadata }
-          : {}),
       });
       return {
-        content: opened.plaintext,
         metadata: opened.metadata,
         format: ZERO_DRIVE_FORMATS.LEGACY_SHARED_ZDSE,
       };
@@ -133,6 +125,6 @@ export async function openZeroDriveSharedFile(input: {
   }
   throw new CapsuleError(
     "LEGACY_SHARED_FILE_INVALID",
-    "Legacy shared file could not be opened with the provided keys",
+    "Legacy shared metadata could not be opened with the provided keys",
   );
 }

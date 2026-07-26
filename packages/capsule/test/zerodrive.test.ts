@@ -8,6 +8,7 @@ import {
   createCapsule,
   createZeroDrivePersonalFileCapsule,
   createZeroDriveSharedFileCapsule,
+  createZeroDriveSharedMetadataCapsule,
   createZeroDriveSharingKeyBackup,
   createZeroDriveVaultIndexCapsule,
   deriveZeroDriveLegacyVaultKey,
@@ -16,6 +17,7 @@ import {
   isCapsule,
   openZeroDrivePersonalFile,
   openZeroDriveSharedFile,
+  openZeroDriveSharedMetadataCapsule,
   openZeroDriveSharingKeyBackup,
   openZeroDriveVaultIndex,
   type JsonObject,
@@ -266,6 +268,47 @@ test("creates and opens shared capsules directly with recipient JWKs", async () 
   );
 });
 
+test("creates and opens small shared metadata capsules", async () => {
+  const [recipient, wrongRecipient] = await Promise.all([
+    generateRecipientKeyPair(),
+    generateRecipientKeyPair(),
+  ]);
+  const fingerprint = await fingerprintPublicKey(recipient.publicKeyJwk);
+  const metadata = {
+    name: "inbox-photo.png",
+    mimeType: "image/png",
+    message: "private hello",
+  };
+  const capsule = await createZeroDriveSharedMetadataCapsule({
+    metadata,
+    recipients: [
+      {
+        publicKeyJwk: jsonObject(recipient.publicKeyJwk),
+        fingerprint,
+        keyVersion: 4,
+      },
+    ],
+  });
+  const opened = await openZeroDriveSharedMetadataCapsule({
+    encryptedBytes: capsule,
+    recipientPrivateKeyJwks: [
+      { privateKeyJwk: jsonObject(recipient.privateKeyJwk) },
+    ],
+  });
+  assert.deepEqual(opened.metadata, metadata);
+  assert.equal(opened.format, ZERO_DRIVE_FORMATS.CAPSULE_V1);
+
+  await assert.rejects(
+    openZeroDriveSharedMetadataCapsule({
+      encryptedBytes: capsule,
+      recipientPrivateKeyJwks: [
+        { privateKeyJwk: jsonObject(wrongRecipient.privateKeyJwk) },
+      ],
+    }),
+    expectCode("CAPSULE_NO_MATCHING_KEY"),
+  );
+});
+
 test("opens legacy ZDSE and pre-ZDSE shares through the high-level API", async () => {
   const recipient = await generateRecipientKeyPair();
   const publicKey = await importPublicKey(recipient.publicKeyJwk);
@@ -296,6 +339,27 @@ test("opens legacy ZDSE and pre-ZDSE shares through the high-level API", async (
     assert.deepEqual(opened.content, fixture.content);
     assert.deepEqual(opened.metadata, fixture.metadata);
     assert.equal(opened.format, ZERO_DRIVE_FORMATS.LEGACY_SHARED_ZDSE);
+
+    if (fixture.encryptedMetadata !== undefined) {
+      const openedMetadata = await openZeroDriveSharedMetadataCapsule({
+        encryptedBytes: new Uint8Array(0),
+        recipientPrivateKeyJwks: [
+          {
+            privateKeyJwk: jsonObject(recipient.privateKeyJwk),
+            keyVersion: 3,
+          },
+        ],
+        legacy: {
+          encryptedFileKey: fixture.encryptedFileKey,
+          encryptedMetadata: fixture.encryptedMetadata,
+        },
+      });
+      assert.deepEqual(openedMetadata.metadata, fixture.metadata);
+      assert.equal(
+        openedMetadata.format,
+        ZERO_DRIVE_FORMATS.LEGACY_SHARED_ZDSE,
+      );
+    }
   }
 });
 
