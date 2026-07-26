@@ -4,16 +4,16 @@ import { parseArgs } from "node:util";
 
 import {
   CapsuleError,
-  decryptPersonalFileWithRecoveryPhrase,
-  isCapsule,
-  openCapsule,
+  openZeroDrivePersonalFile,
+  openZeroDriveSharingKeyBackup,
+  type JsonObject,
 } from "@zerodrivehq/capsule";
 
 import { writePrivateOutput } from "./output.js";
 import { promptForRecoveryPhrase } from "./prompt.js";
 
-const VERSION = "0.2.1";
-const HELP = `ZeroDrive offline personal-file recovery
+const VERSION = "0.3.0";
+const HELP = `ZeroDrive offline recovery
 
 Usage:
   zerodrive-recovery decrypt <input> --out <output>
@@ -39,6 +39,16 @@ const defaultIo: RecoveryCliIo = {
 };
 
 class CliError extends Error {}
+
+function isSharingKeyBackup(metadata: JsonObject): boolean {
+  const attributes = metadata.attributes;
+  return (
+    typeof attributes === "object" &&
+    attributes !== null &&
+    !Array.isArray(attributes) &&
+    attributes.kind === "private-key-backup"
+  );
+}
 
 function errorCode(error: unknown): string | undefined {
   if (typeof error !== "object" || error === null || !("code" in error)) {
@@ -169,16 +179,19 @@ export async function runRecoveryCli(
     }
 
     try {
-      if (isCapsule(encryptedBytes)) {
-        const opened = await openCapsule({
-          capsule: encryptedBytes,
-          recoveryPhrase,
-        });
-        plaintext = opened.plaintext;
-      } else {
-        plaintext = await decryptPersonalFileWithRecoveryPhrase(
+      const opened = await openZeroDrivePersonalFile({
+        encryptedBytes,
+        recoveryPhrase,
+      });
+      plaintext = opened.content;
+      if (isSharingKeyBackup(opened.metadata)) {
+        const backup = await openZeroDriveSharingKeyBackup({
           encryptedBytes,
           recoveryPhrase,
+        });
+        plaintext.fill(0);
+        plaintext = new TextEncoder().encode(
+          JSON.stringify(backup.privateKeyJwk),
         );
       }
     } catch (error) {

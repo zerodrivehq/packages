@@ -2,6 +2,7 @@ import { createCapsule, openCapsule } from "./capsule.js";
 import { CapsuleError } from "./errors.js";
 import {
   fingerprintPublicKey,
+  importRecipientPublicKey,
   importRecipientPrivateKey,
   assertPositiveKeyVersion,
 } from "./keys.js";
@@ -39,6 +40,33 @@ async function validatePrivateKey(
   };
 }
 
+async function validatePublicKey(
+  value: unknown,
+  expectedFingerprint: string,
+): Promise<JsonWebKey> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new CapsuleError(
+      "CAPSULE_KEY_INVALID",
+      "Private-key backup public JWK is malformed",
+    );
+  }
+  const publicKeyJwk = value as JsonWebKey;
+  if (typeof publicKeyJwk.d === "string") {
+    throw new CapsuleError(
+      "CAPSULE_KEY_INVALID",
+      "Private-key backup public JWK contains private material",
+    );
+  }
+  await importRecipientPublicKey(publicKeyJwk);
+  if (await fingerprintPublicKey(publicKeyJwk) !== expectedFingerprint) {
+    throw new CapsuleError(
+      "CAPSULE_KEY_INVALID",
+      "Private-key backup public key does not match",
+    );
+  }
+  return publicKeyJwk;
+}
+
 export async function createPrivateKeyBackupCapsule(
   input: CreatePrivateKeyBackupInput,
 ): Promise<CreatedCapsule> {
@@ -46,7 +74,32 @@ export async function createPrivateKeyBackupCapsule(
     input.privateKeyJwk,
     input.keyVersion,
   );
-  const plaintext = new TextEncoder().encode(stableStringify(privateKeyJwk));
+  if (
+    input.fingerprint !== undefined &&
+    input.fingerprint !== fingerprint
+  ) {
+    throw new CapsuleError(
+      "CAPSULE_KEY_INVALID",
+      "Private-key backup fingerprint does not match",
+    );
+  }
+  let publicKeyJwk: JsonWebKey | undefined;
+  if (input.publicKeyJwk !== undefined) {
+    publicKeyJwk = await validatePublicKey(input.publicKeyJwk, fingerprint);
+  }
+  const payload =
+    publicKeyJwk === undefined
+      ? privateKeyJwk
+      : { version: 1, privateKeyJwk, publicKeyJwk };
+  const plaintext = new TextEncoder().encode(stableStringify(payload));
+  const createdAt = input.createdAt ?? new Date().toISOString();
+  if (Number.isNaN(Date.parse(createdAt))) {
+    plaintext.fill(0);
+    throw new CapsuleError(
+      "CAPSULE_METADATA_INVALID",
+      "Private-key backup timestamp is invalid",
+    );
+  }
   try {
     return await createCapsule({
       plaintext,
@@ -55,10 +108,12 @@ export async function createPrivateKeyBackupCapsule(
         name: "zerodrive-rsa-private-key.json",
         mimeType: "application/jwk+json",
         size: plaintext.byteLength,
+        createdAt,
         attributes: {
           kind: "private-key-backup",
           keyVersion: input.keyVersion,
           fingerprint,
+          ...(publicKeyJwk === undefined ? {} : { payloadVersion: 1 }),
         },
       },
     });
@@ -97,15 +152,46 @@ export async function openPrivateKeyBackupCapsule(
         "Private-key backup JWK is malformed",
       );
     }
-    const validated = await validatePrivateKey(value, attributes.keyVersion);
+    let privateKeyValue = value;
+    let publicKeyValue: unknown;
+    if (attributes.payloadVersion === 1) {
+      if (
+        typeof value !== "object" ||
+        value === null ||
+        Array.isArray(value) ||
+        (value as Record<string, unknown>).version !== 1
+      ) {
+        throw new CapsuleError(
+          "CAPSULE_KEY_INVALID",
+          "Private-key backup payload is malformed",
+        );
+      }
+      const payload = value as Record<string, unknown>;
+      privateKeyValue = payload.privateKeyJwk;
+      publicKeyValue = payload.publicKeyJwk;
+    } else if (attributes.payloadVersion !== undefined) {
+      throw new CapsuleError(
+        "CAPSULE_KEY_INVALID",
+        "Private-key backup payload version is unsupported",
+      );
+    }
+    const validated = await validatePrivateKey(
+      privateKeyValue,
+      attributes.keyVersion,
+    );
     if (validated.fingerprint !== attributes.fingerprint) {
       throw new CapsuleError(
         "CAPSULE_KEY_INVALID",
         "Private-key backup fingerprint does not match",
       );
     }
+    const publicKeyJwk =
+      publicKeyValue === undefined
+        ? undefined
+        : await validatePublicKey(publicKeyValue, validated.fingerprint);
     return {
       privateKeyJwk: validated.privateKeyJwk,
+      ...(publicKeyJwk === undefined ? {} : { publicKeyJwk }),
       keyVersion: attributes.keyVersion,
       fingerprint: validated.fingerprint,
     };

@@ -57,3 +57,18 @@ Metadata plaintext is UTF-8 JSON with required `name`, `mimeType`, and non-negat
 Readers reject unknown versions, suites, algorithms, or flags; invalid or overflowing lengths; malformed metadata; duplicate recipients; zero key versions; IV reuse; nonzero reserved bytes; absent access envelopes; truncated data; and trailing data. Authentication must finish before plaintext is returned or written.
 
 Recipient fingerprints, key versions, recipient count, wrapped-key sizes, section sizes, and the presence of owner recovery are visible. Metadata values and content remain encrypted. Capsule v1 is an in-memory format; streaming and recipient-table mutation are outside this version.
+
+## ZeroDrive adapter profiles
+
+The `createZeroDrive*` APIs use capsule v1 without changing its byte format. They identify the application payload through encrypted metadata attributes:
+
+| API | Encrypted metadata `attributes.kind` | Content |
+| --- | --- | --- |
+| personal file | `zerodrive.personal-file` | file bytes |
+| vault index | `zerodrive.vault-index` | UTF-8 JSON index |
+| shared file | `zerodrive.shared-file` | file bytes |
+| sharing-key backup | `private-key-backup` | private JWK or versioned key-pair payload |
+
+Personal and shared adapters store the caller's JSON-safe file metadata in encrypted `attributes.metadata`. Vault-index metadata contains `version: 1`; its JSON value is stored as content so arrays and primitive JSON values remain valid. Sharing-key backups include encrypted key material plus authenticated key version, fingerprint, and creation timestamp metadata.
+
+The adapter profile is storage-independent. It defines only bytes, cryptographic keys, JSON metadata, format detection, and validation. Google Drive, object storage, databases, OAuth, recipient lookup, access control, filesystem operations, and UI remain caller responsibilities.

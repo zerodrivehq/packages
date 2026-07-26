@@ -1,4 +1,4 @@
-import { base64ToBytes } from "./encoding.js";
+import { base64ToBytes, copyBytes } from "./encoding.js";
 import { CapsuleError } from "./errors.js";
 import {
   fingerprintPublicKey,
@@ -145,11 +145,11 @@ async function decryptSeparateMetadata(
       await crypto.subtle.decrypt(
         {
           name: "AES-GCM",
-          iv: encrypted.slice(0, 12),
+          iv: copyBytes(encrypted, 0, 12),
           additionalData: SHARED_METADATA_AAD,
         },
         fileKey,
-        encrypted.slice(12),
+        copyBytes(encrypted, 12),
       ),
     );
     return parseSharedMetadata(
@@ -178,7 +178,7 @@ async function decryptSharedEnvelope(
       "Legacy shared envelope is truncated",
     );
   }
-  const header = encrypted.slice(0, SHARED_HEADER_BYTES);
+  const header = copyBytes(encrypted, 0, SHARED_HEADER_BYTES);
   const view = new DataView(header.buffer);
   if (view.getUint8(4) !== 1 || view.getUint8(5) !== 1) {
     throw new CapsuleError(
@@ -205,11 +205,15 @@ async function decryptSharedEnvelope(
       "Legacy shared envelope lengths are malformed",
     );
   }
-  const metadataCiphertext = encrypted.slice(
+  const metadataCiphertext = copyBytes(
+    encrypted,
     SHARED_HEADER_BYTES,
     SHARED_HEADER_BYTES + metadataLength,
   );
-  const contentCiphertext = encrypted.slice(SHARED_HEADER_BYTES + metadataLength);
+  const contentCiphertext = copyBytes(
+    encrypted,
+    SHARED_HEADER_BYTES + metadataLength,
+  );
   let metadataPlaintext: Uint8Array | undefined;
   let plaintext: Uint8Array | undefined;
   try {
@@ -217,7 +221,7 @@ async function decryptSharedEnvelope(
       crypto.subtle.decrypt(
         {
           name: "AES-GCM",
-          iv: header.slice(10, 22),
+          iv: copyBytes(header, 10, 22),
           additionalData: header,
         },
         fileKey,
@@ -226,7 +230,7 @@ async function decryptSharedEnvelope(
       crypto.subtle.decrypt(
         {
           name: "AES-GCM",
-          iv: header.slice(22, 34),
+          iv: copyBytes(header, 22, 34),
           additionalData: header,
         },
         fileKey,
@@ -275,7 +279,7 @@ export async function openLegacySharedFile(
         "Legacy wrapped-key version does not match",
       );
     }
-    if (wrapped.fingerprint !== undefined) {
+    if (wrapped.fingerprint !== undefined && input.privateKeyJwk !== undefined) {
       const fingerprint = await fingerprintPublicKey(input.privateKeyJwk);
       if (fingerprint !== wrapped.fingerprint) {
         throw new CapsuleError(
@@ -284,12 +288,21 @@ export async function openLegacySharedFile(
         );
       }
     }
-    const hash =
-      input.privateKeyJwk.alg === "RSA-OAEP" ||
-      input.privateKeyJwk.alg === "RSA-OAEP-1"
-        ? "SHA-1"
-        : "SHA-256";
-    const privateKey = await importRecipientPrivateKey(input.privateKeyJwk, hash);
+    let privateKey = input.privateKey;
+    if (privateKey === undefined) {
+      if (input.privateKeyJwk === undefined) {
+        throw new CapsuleError(
+          "CAPSULE_KEY_INVALID",
+          "Legacy shared file requires a recipient private key",
+        );
+      }
+      const hash =
+        input.privateKeyJwk.alg === "RSA-OAEP" ||
+        input.privateKeyJwk.alg === "RSA-OAEP-1"
+          ? "SHA-1"
+          : "SHA-256";
+      privateKey = await importRecipientPrivateKey(input.privateKeyJwk, hash);
+    }
     let rawKey: Uint8Array | undefined;
     try {
       rawKey = new Uint8Array(
@@ -326,9 +339,12 @@ export async function openLegacySharedFile(
         try {
           plaintext = new Uint8Array(
             await crypto.subtle.decrypt(
-              { name: "AES-GCM", iv: input.encryptedFile.slice(0, 12) },
+              {
+                name: "AES-GCM",
+                iv: copyBytes(input.encryptedFile, 0, 12),
+              },
               fileKey,
-              input.encryptedFile.slice(12),
+              copyBytes(input.encryptedFile, 12),
             ),
           );
           const metadata = input.encryptedMetadata

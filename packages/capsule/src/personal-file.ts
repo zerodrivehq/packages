@@ -1,6 +1,7 @@
 import { mnemonicToSeedWebcrypto, validateMnemonic } from "@scure/bip39";
 import { wordlist as englishWordlist } from "@scure/bip39/wordlists/english.js";
 
+import { copyBytes } from "./encoding.js";
 import { CapsuleError } from "./errors.js";
 
 export const PERSONAL_FILE_IV_BYTES = 12;
@@ -56,8 +57,8 @@ export async function decryptPersonalFile(
     );
   }
 
-  const iv = encryptedBytes.slice(0, PERSONAL_FILE_IV_BYTES);
-  const ciphertext = encryptedBytes.slice(PERSONAL_FILE_IV_BYTES);
+  const iv = copyBytes(encryptedBytes, 0, PERSONAL_FILE_IV_BYTES);
+  const ciphertext = copyBytes(encryptedBytes, PERSONAL_FILE_IV_BYTES);
 
   try {
     const plaintext = await globalThis.crypto.subtle.decrypt(

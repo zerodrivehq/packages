@@ -9,6 +9,16 @@ export function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   return difference === 0;
 }
 
+export function copyBytes(
+  bytes: Uint8Array,
+  start = 0,
+  end = bytes.byteLength,
+): Uint8Array<ArrayBuffer> {
+  const copy = new Uint8Array(end - start);
+  copy.set(bytes.subarray(start, end));
+  return copy;
+}
+
 export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
     "",

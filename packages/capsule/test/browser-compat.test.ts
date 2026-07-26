@@ -8,7 +8,12 @@ import { chromium } from "@playwright/test";
 import { mnemonicToSeedWebcrypto } from "@scure/bip39";
 import { build } from "esbuild";
 
-import { createCapsule, openCapsule } from "../dist/index.js";
+import {
+  createCapsule,
+  createZeroDrivePersonalFileCapsule,
+  openCapsule,
+  openZeroDriveVaultIndex,
+} from "../dist/index.js";
 
 const PHRASE =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
@@ -95,6 +100,58 @@ test("capsules interoperate between Node and browsers", async () => {
     });
     assert.deepEqual(Array.from(openedInNode.plaintext), browserPlaintext);
     assert.equal(openedInNode.metadata.name, "browser.bin");
+
+    const zeroDriveContent = new TextEncoder().encode(
+      "ZeroDrive adapter from Node",
+    );
+    const zeroDriveCapsule = await createZeroDrivePersonalFileCapsule({
+      content: zeroDriveContent,
+      metadata: { name: "adapter.txt", mimeType: "text/plain" },
+      recoveryPhrase: PHRASE,
+    });
+    const adapterOpenedInBrowser = await page.evaluate(
+      async ({ capsule, phrase }) => {
+        const api = (globalThis as typeof globalThis & {
+          capsuleTestApi: {
+            openZeroDrivePersonal(
+              bytes: number[],
+              recoveryPhrase: string,
+            ): Promise<{
+              content: number[];
+              metadata: { name: string };
+              format: string;
+            }>;
+          };
+        }).capsuleTestApi;
+        return api.openZeroDrivePersonal(capsule, phrase);
+      },
+      { capsule: Array.from(zeroDriveCapsule), phrase: PHRASE },
+    );
+    assert.deepEqual(
+      adapterOpenedInBrowser.content,
+      Array.from(zeroDriveContent),
+    );
+    assert.equal(adapterOpenedInBrowser.metadata.name, "adapter.txt");
+    assert.equal(adapterOpenedInBrowser.format, "capsule_v1");
+
+    const browserVaultIndex = await page.evaluate(async (phrase) => {
+      const api = (globalThis as typeof globalThis & {
+        capsuleTestApi: {
+          createZeroDriveVaultIndex(
+            recoveryPhrase: string,
+          ): Promise<number[]>;
+        };
+      }).capsuleTestApi;
+      return api.createZeroDriveVaultIndex(phrase);
+    }, PHRASE);
+    const vaultOpenedInNode = await openZeroDriveVaultIndex({
+      encryptedBytes: Uint8Array.from(browserVaultIndex),
+      recoveryPhrase: PHRASE,
+    });
+    assert.deepEqual(vaultOpenedInNode.index, {
+      files: [{ id: "browser-file" }],
+      folders: [],
+    });
   } finally {
     await browser.close();
   }

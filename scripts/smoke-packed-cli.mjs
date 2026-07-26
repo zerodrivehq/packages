@@ -59,8 +59,13 @@ try {
     ["--no-install", "zerodrive-recovery", "--version"],
     project,
   );
-  if (version !== "0.2.1") throw new Error(`Unexpected CLI version: ${version}`);
+  if (version !== "0.3.0") throw new Error(`Unexpected CLI version: ${version}`);
 
+  const capsuleModule = await import(
+    pathToFileURL(
+      join(project, "node_modules/@zerodrivehq/capsule/dist/index.js"),
+    ).href
+  );
   const fixture = JSON.parse(
     readFileSync(
       join(process.cwd(), "packages/capsule/test/fixtures/capsule-v1.json"),
@@ -68,6 +73,55 @@ try {
     ),
   );
   const vector = fixture.vectors.find((candidate) => candidate.name === "binary");
+
+  const personalContent = new TextEncoder().encode("packed personal capsule");
+  const personalCapsule =
+    await capsuleModule.createZeroDrivePersonalFileCapsule({
+      content: personalContent,
+      metadata: { name: "packed.txt", mimeType: "text/plain" },
+      recoveryPhrase: fixture.recoveryPhrase,
+    });
+  const openedPersonal = await capsuleModule.openZeroDrivePersonalFile({
+    encryptedBytes: personalCapsule,
+    recoveryPhrase: fixture.recoveryPhrase,
+  });
+  if (
+    openedPersonal.format !== "capsule_v1" ||
+    openedPersonal.metadata.name !== "packed.txt" ||
+    !Buffer.from(openedPersonal.content).equals(Buffer.from(personalContent))
+  ) {
+    throw new Error("Packed personal-file adapters failed");
+  }
+
+  const vaultIndex = { files: [{ id: "packed-file" }], folders: [] };
+  const vaultCapsule = await capsuleModule.createZeroDriveVaultIndexCapsule({
+    index: vaultIndex,
+    recoveryPhrase: fixture.recoveryPhrase,
+  });
+  const openedVault = await capsuleModule.openZeroDriveVaultIndex({
+    encryptedBytes: vaultCapsule,
+    recoveryPhrase: fixture.recoveryPhrase,
+  });
+  if (JSON.stringify(openedVault.index) !== JSON.stringify(vaultIndex)) {
+    throw new Error("Packed vault-index adapters failed");
+  }
+
+  const recipient = await capsuleModule.generateRecipientKeyPair();
+  const sharedCapsule = await capsuleModule.createZeroDriveSharedFileCapsule({
+    content: personalContent,
+    metadata: { name: "shared.txt", mimeType: "text/plain" },
+    recipients: [{ publicKeyJwk: recipient.publicKeyJwk, keyVersion: 1 }],
+  });
+  const openedShared = await capsuleModule.openZeroDriveSharedFile({
+    encryptedBytes: sharedCapsule,
+    recipientPrivateKeyJwks: [
+      { privateKeyJwk: recipient.privateKeyJwk },
+    ],
+  });
+  if (!Buffer.from(openedShared.content).equals(Buffer.from(personalContent))) {
+    throw new Error("Packed shared-file adapters failed");
+  }
+
   const input = join(project, "input.zdcp");
   const output = join(project, "output.bin");
   writeFileSync(input, Buffer.from(vector.capsuleBase64, "base64"));

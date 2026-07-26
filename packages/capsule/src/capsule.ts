@@ -303,6 +303,59 @@ async function unwrapForRecipients(
   return undefined;
 }
 
+async function unwrapForRecipientCryptoKeys(
+  parsed: ParsedCapsule,
+  privateKeys: CryptoKey[],
+): Promise<{ key: CryptoKey; access: CapsuleAccess } | undefined> {
+  let attempted = false;
+  for (const privateKey of privateKeys) {
+    for (const envelope of parsed.recipientEnvelopes) {
+      attempted = true;
+      let rawKey: Uint8Array | undefined;
+      try {
+        rawKey = new Uint8Array(
+          await crypto.subtle.decrypt(
+            { name: "RSA-OAEP" },
+            privateKey,
+            envelope.wrappedKey,
+          ),
+        );
+        if (rawKey.byteLength !== 32) continue;
+        const keyBytes = Uint8Array.from(rawKey);
+        try {
+          return {
+            key: await crypto.subtle.importKey(
+              "raw",
+              keyBytes,
+              { name: "AES-GCM", length: 256 },
+              false,
+              ["decrypt"],
+            ),
+            access: {
+              kind: "recipient",
+              keyVersion: envelope.keyVersion,
+              fingerprint: envelope.fingerprint,
+            },
+          };
+        } finally {
+          keyBytes.fill(0);
+        }
+      } catch {
+        // A CryptoKey has no exportable fingerprint, so try every envelope.
+      } finally {
+        rawKey?.fill(0);
+      }
+    }
+  }
+  if (attempted) {
+    throw new CapsuleError(
+      "CAPSULE_KEY_UNWRAP_FAILED",
+      "Capsule data key could not be unwrapped",
+    );
+  }
+  return undefined;
+}
+
 async function resolveDataKey(
   parsed: ParsedCapsule,
   input: OpenCapsuleInput,
@@ -326,6 +379,11 @@ async function resolveDataKey(
   }
   const recipient = await unwrapForRecipients(parsed, input.privateKeys ?? []);
   if (recipient !== undefined) return recipient;
+  const cryptoKeyRecipient = await unwrapForRecipientCryptoKeys(
+    parsed,
+    input.recipientPrivateKeys ?? [],
+  );
+  if (cryptoKeyRecipient !== undefined) return cryptoKeyRecipient;
   if (ownerFailed) {
     throw new CapsuleError(
       "CAPSULE_KEY_UNWRAP_FAILED",

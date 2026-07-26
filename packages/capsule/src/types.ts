@@ -61,6 +61,7 @@ export interface OpenCapsuleInput {
   capsule: Uint8Array;
   recoveryPhrase?: string;
   privateKeys?: CapsulePrivateKey[];
+  recipientPrivateKeys?: CryptoKey[];
 }
 
 export type CapsuleAccess =
@@ -75,8 +76,11 @@ export interface OpenedCapsule {
 
 export interface CreatePrivateKeyBackupInput {
   privateKeyJwk: JsonWebKey;
+  publicKeyJwk?: JsonWebKey;
   keyVersion: number;
   recoveryPhrase: string;
+  fingerprint?: string;
+  createdAt?: string;
 }
 
 export interface OpenPrivateKeyBackupInput {
@@ -86,6 +90,7 @@ export interface OpenPrivateKeyBackupInput {
 
 export interface OpenedPrivateKeyBackup {
   privateKeyJwk: JsonWebKey;
+  publicKeyJwk?: JsonWebKey;
   keyVersion: number;
   fingerprint: string;
 }
@@ -93,7 +98,8 @@ export interface OpenedPrivateKeyBackup {
 export interface OpenLegacySharedFileInput {
   encryptedFile: Uint8Array;
   wrappedFileKey: string;
-  privateKeyJwk: JsonWebKey;
+  privateKeyJwk?: JsonWebKey;
+  privateKey?: CryptoKey;
   keyVersion?: number;
   encryptedMetadata?: string;
   fallbackMetadata?: { name: string; mimeType: string };
