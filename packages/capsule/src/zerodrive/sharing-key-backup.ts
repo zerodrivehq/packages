@@ -3,6 +3,7 @@ import { isCapsule } from "../format.js";
 import { fingerprintPublicKey } from "../keys.js";
 import {
   createPrivateKeyBackupCapsule,
+  openLegacyPbkdf2PrivateKeyBackup,
   openLegacyPrivateKeyBackup,
   openPrivateKeyBackupCapsule,
 } from "../private-key-backup.js";
@@ -60,6 +61,8 @@ export async function createZeroDriveSharingKeyBackup(input: {
 export async function openZeroDriveSharingKeyBackup(input: {
   encryptedBytes: Uint8Array;
   recoveryPhrase: string;
+  legacyPbkdf2Salt?: string;
+  legacyKeyVersion?: number;
 }): Promise<{
   privateKeyJwk: JsonObject;
   publicKeyJwk?: JsonObject;
@@ -67,15 +70,29 @@ export async function openZeroDriveSharingKeyBackup(input: {
   fingerprint?: string;
   format: ZeroDriveEncryptedFormat;
 }> {
-  const opened = isCapsule(input.encryptedBytes)
-    ? await openPrivateKeyBackupCapsule({
-        capsule: input.encryptedBytes,
-        recoveryPhrase: input.recoveryPhrase,
-      })
-    : await openLegacyPrivateKeyBackup(
+  let opened;
+  if (isCapsule(input.encryptedBytes)) {
+    opened = await openPrivateKeyBackupCapsule({
+      capsule: input.encryptedBytes,
+      recoveryPhrase: input.recoveryPhrase,
+    });
+  } else {
+    try {
+      opened = await openLegacyPrivateKeyBackup(
         input.encryptedBytes,
         input.recoveryPhrase,
+        input.legacyKeyVersion,
       );
+    } catch (error) {
+      if (input.legacyPbkdf2Salt === undefined) throw error;
+      opened = await openLegacyPbkdf2PrivateKeyBackup(
+        input.encryptedBytes,
+        input.recoveryPhrase,
+        input.legacyPbkdf2Salt,
+        input.legacyKeyVersion,
+      );
+    }
+  }
   const privateKeyJwk = jsonWebKeyToJsonObject(
     opened.privateKeyJwk,
     "Sharing-key backup private JWK is malformed",

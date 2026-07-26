@@ -425,6 +425,50 @@ test("creates and opens versioned sharing-key backup capsules", async () => {
   );
 });
 
+test("opens legacy IndexedDB PBKDF2 sharing-key records", async () => {
+  const pair = await generateRecipientKeyPair();
+  const salt = "legacy-indexeddb-salt";
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(PHRASE),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+  const wrappingKey = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: 100_000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"],
+  );
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    wrappingKey,
+    encoder.encode(JSON.stringify(pair.privateKeyJwk)),
+  );
+  const encryptedBytes = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+  encryptedBytes.set(iv);
+  encryptedBytes.set(new Uint8Array(ciphertext), iv.byteLength);
+
+  const opened = await openZeroDriveSharingKeyBackup({
+    encryptedBytes,
+    recoveryPhrase: PHRASE,
+    legacyPbkdf2Salt: salt,
+    legacyKeyVersion: 7,
+  });
+  assert.equal(opened.privateKeyJwk.d, pair.privateKeyJwk.d);
+  assert.equal(opened.keyVersion, 7);
+  assert.equal(opened.format, ZERO_DRIVE_FORMATS.LEGACY_PRIVATE_KEY_BACKUP_V1);
+});
+
 test("opens legacy Google Drive sharing-key backups", async () => {
   const pair = await generateRecipientKeyPair();
   const legacyJwk = { ...pair.privateKeyJwk, alg: "RSA-OAEP" };

@@ -19,6 +19,7 @@ export {
 } from "./recovery-phrase.js";
 export {
   createPrivateKeyBackupCapsule,
+  openLegacyPbkdf2PrivateKeyBackup,
   openLegacyPrivateKeyBackup,
   openPrivateKeyBackupCapsule,
 } from "./private-key-backup.js";
