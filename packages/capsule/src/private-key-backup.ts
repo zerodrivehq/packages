@@ -7,7 +7,7 @@ import {
   assertPositiveKeyVersion,
 } from "./keys.js";
 import { decryptPersonalFileWithRecoveryPhrase } from "./personal-file.js";
-import { stableStringify } from "./encoding.js";
+import { copyBytes, stableStringify } from "./encoding.js";
 import type {
   CreatePrivateKeyBackupInput,
   CreatedCapsule,
@@ -225,5 +225,70 @@ export async function openLegacyPrivateKeyBackup(
     return { ...validated, keyVersion };
   } finally {
     plaintext.fill(0);
+  }
+}
+
+export async function openLegacyPbkdf2PrivateKeyBackup(
+  encryptedBytes: Uint8Array,
+  recoveryPhrase: string,
+  salt: string,
+  keyVersion = 1,
+): Promise<OpenedPrivateKeyBackup> {
+  if (encryptedBytes.byteLength < 29 || salt.length === 0) {
+    throw new CapsuleError(
+      "CAPSULE_KEY_INVALID",
+      "Legacy IndexedDB private-key backup is malformed",
+    );
+  }
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(recoveryPhrase),
+    "PBKDF2",
+    false,
+    ["deriveKey"],
+  );
+  const wrappingKey = await crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: encoder.encode(salt),
+      iterations: 100_000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"],
+  );
+  let plaintext: ArrayBuffer;
+  try {
+    plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: copyBytes(encryptedBytes, 0, 12) },
+      wrappingKey,
+      copyBytes(encryptedBytes, 12),
+    );
+  } catch {
+    throw new CapsuleError(
+      "DECRYPTION_FAILED",
+      "Legacy IndexedDB private-key backup could not be opened",
+    );
+  }
+  const bytes = new Uint8Array(plaintext);
+  try {
+    let value: unknown;
+    try {
+      value = JSON.parse(
+        new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+      );
+    } catch {
+      throw new CapsuleError(
+        "CAPSULE_KEY_INVALID",
+        "Legacy IndexedDB private-key backup JWK is malformed",
+      );
+    }
+    const validated = await validatePrivateKey(value, keyVersion, true);
+    return { ...validated, keyVersion };
+  } finally {
+    bytes.fill(0);
   }
 }
