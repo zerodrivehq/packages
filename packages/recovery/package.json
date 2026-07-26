@@ -1,7 +1,7 @@
 {
   "name": "@zerodrivehq/recovery",
-  "version": "0.2.1",
-  "description": "Offline recovery CLI for ZeroDrive personal files",
+  "version": "0.3.0",
+  "description": "Offline recovery CLI for ZeroDrive encrypted files and key backups",
   "type": "module",
   "bin": {
     "zerodrive-recovery": "./dist/cli.js"
@@ -32,6 +32,6 @@
   },
   "dependencies": {
     "@inquirer/prompts": "^8.5.2",
-    "@zerodrivehq/capsule": "^0.2.0"
+    "@zerodrivehq/capsule": "workspace:^"
   }
 }

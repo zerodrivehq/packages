@@ -6,7 +6,7 @@ Small, auditable cryptographic and offline-recovery packages for ZeroDrive.
 
 ### `@zerodrivehq/capsule`
 
-Creates and opens versioned `ZDCP` encrypted containers in Node.js and modern browsers. Capsule v1 supports owner recovery phrases, versioned RSA recipients, authenticated metadata, private-key backups, and read-only compatibility with existing personal and shared ZeroDrive files.
+Creates and opens versioned `ZDCP` encrypted containers in Node.js and modern browsers. High-level adapters cover personal files, vault indexes, shared files, and sharing-key backups while preserving read-only compatibility with every current ZeroDrive format.
 
 The package operates only on bytes and keys. It has no storage, OAuth, database, filesystem, UI, logging, analytics, or network APIs.
 
@@ -18,7 +18,7 @@ An offline CLI for files already downloaded to the user's computer:
 npx @zerodrivehq/recovery decrypt ./downloaded-file.zd --out ./recovered-file.pdf
 ```
 
-The CLI detects capsule v1 files and existing personal-file ciphertext. It prompts for the recovery phrase using hidden terminal input and never accepts the phrase through arguments, environment variables, or pipes.
+The CLI detects capsule v1 files and existing personal-file ciphertext. It recovers personal files, vault indexes, and sharing private-key backups through hidden recovery-phrase input and never accepts the phrase through arguments, environment variables, or pipes.
 
 ## Development
 
@@ -38,4 +38,4 @@ Generated `dist/` directories are not committed. Format details are in [`docs/ca
 
 ## Releasing
 
-Both packages are versioned `0.2.0` for this release. After `develop` is merged into `main`, publish `@zerodrivehq/capsule` first and `@zerodrivehq/recovery` second. Feature branches are never published.
+Both packages are versioned `0.3.0` for this release. After `develop` is merged into `main`, publish `@zerodrivehq/capsule` first and `@zerodrivehq/recovery` second. Feature branches are never published.

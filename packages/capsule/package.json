@@ -1,6 +1,6 @@
 {
   "name": "@zerodrivehq/capsule",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Portable encrypted containers and ZeroDrive compatibility primitives",
   "type": "module",
   "main": "./dist/index.js",
@@ -28,7 +28,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "pnpm build && node --test test/capsule-v1.test.ts test/legacy-shared.test.ts test/personal-file.test.ts test/private-key-backup.test.ts",
+    "test": "pnpm build && node --test test/capsule-v1.test.ts test/legacy-shared.test.ts test/personal-file.test.ts test/private-key-backup.test.ts test/zerodrive.test.ts",
     "test:browser": "pnpm build && node --test test/browser-compat.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepack": "pnpm test"

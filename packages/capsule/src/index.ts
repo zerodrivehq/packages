@@ -35,6 +35,32 @@ export {
   derivePersonalFileKey,
   normalizeRecoveryPhrase,
 } from "./personal-file.js";
+export {
+  ZERO_DRIVE_FORMATS,
+  type ZeroDriveEncryptedFormat,
+} from "./zerodrive/formats.js";
+export {
+  createZeroDrivePersonalFileCapsule,
+  deriveZeroDriveLegacyVaultKey,
+  openZeroDrivePersonalFile,
+} from "./zerodrive/personal-file.js";
+export {
+  createZeroDriveVaultIndexCapsule,
+  openZeroDriveVaultIndex,
+} from "./zerodrive/vault-index.js";
+export {
+  createZeroDriveSharedFileCapsule,
+  openZeroDriveSharedFile,
+  type ZeroDriveSharedRecipient,
+} from "./zerodrive/shared-file.js";
+export {
+  createZeroDriveSharingKeyBackup,
+  openZeroDriveSharingKeyBackup,
+} from "./zerodrive/sharing-key-backup.js";
+export type {
+  ZeroDriveOpenResult,
+  ZeroDriveVaultIndexResult,
+} from "./zerodrive/types.js";
 export type {
   CapsuleAccess,
   CapsuleHeader,

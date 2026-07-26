@@ -4,7 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createCapsule } from "../../capsule/dist/index.js";
+import {
+  createCapsule,
+  createZeroDriveSharingKeyBackup,
+  createZeroDriveVaultIndexCapsule,
+  generateRecipientKeyPair,
+  type JsonObject,
+} from "../../capsule/dist/index.js";
 import { runRecoveryCli } from "../dist/main.js";
 
 interface Fixture {
@@ -118,7 +124,53 @@ test("shows help and version without prompting", async () => {
 
   const version = createIo();
   assert.equal(await runRecoveryCli(["--version"], version.io), 0);
-  assert.equal(version.result().stdout, "0.2.1\n");
+  assert.equal(version.result().stdout, "0.3.0\n");
+});
+
+test("recovers capsule vault indexes as JSON", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "zerodrive-recovery-test-"));
+  const input = join(directory, "db-list.zdcp");
+  const output = join(directory, "db-list.json");
+  const index = { files: [{ id: "one" }], folders: [] };
+  await writeFile(
+    input,
+    await createZeroDriveVaultIndexCapsule({
+      index,
+      recoveryPhrase: fixture.recoveryPhrase,
+    }),
+  );
+
+  const capture = createIo();
+  assert.equal(
+    await runRecoveryCli(["decrypt", input, "--out", output], capture.io),
+    0,
+  );
+  assert.deepEqual(JSON.parse(await readFile(output, "utf8")), index);
+});
+
+test("recovers new sharing-key backups as a direct private JWK", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "zerodrive-recovery-test-"));
+  const input = join(directory, "sharing-key.zdcp");
+  const output = join(directory, "private-key.json");
+  const pair = await generateRecipientKeyPair();
+  await writeFile(
+    input,
+    await createZeroDriveSharingKeyBackup({
+      privateKeyJwk: JSON.parse(JSON.stringify(pair.privateKeyJwk)) as JsonObject,
+      publicKeyJwk: JSON.parse(JSON.stringify(pair.publicKeyJwk)) as JsonObject,
+      recoveryPhrase: fixture.recoveryPhrase,
+      keyVersion: 2,
+    }),
+  );
+
+  const capture = createIo();
+  assert.equal(
+    await runRecoveryCli(["decrypt", input, "--out", output], capture.io),
+    0,
+  );
+  const recovered = JSON.parse(await readFile(output, "utf8")) as JsonWebKey;
+  assert.equal(recovered.d, pair.privateKeyJwk.d);
+  assert.equal("privateKeyJwk" in recovered, false);
 });
 
 test("rejects missing arguments and any phrase argument", async () => {

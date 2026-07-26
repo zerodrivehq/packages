@@ -1,4 +1,9 @@
-import { createCapsule, openCapsule } from "../dist/index.js";
+import {
+  createCapsule,
+  createZeroDriveVaultIndexCapsule,
+  openCapsule,
+  openZeroDrivePersonalFile,
+} from "../dist/index.js";
 import { mnemonicToSeedWebcrypto } from "@scure/bip39";
 
 const api = {
@@ -28,6 +33,30 @@ const api = {
       metadata: opened.metadata,
       access: opened.access,
     };
+  },
+  async openZeroDrivePersonal(
+    capsule: number[],
+    recoveryPhrase: string,
+  ) {
+    const opened = await openZeroDrivePersonalFile({
+      encryptedBytes: Uint8Array.from(capsule),
+      recoveryPhrase,
+    });
+    return {
+      content: Array.from(opened.content),
+      metadata: opened.metadata,
+      format: opened.format,
+    };
+  },
+  async createZeroDriveVaultIndex(
+    recoveryPhrase: string,
+  ): Promise<number[]> {
+    return Array.from(
+      await createZeroDriveVaultIndexCapsule({
+        index: { files: [{ id: "browser-file" }], folders: [] },
+        recoveryPhrase,
+      }),
+    );
   },
 };
 
