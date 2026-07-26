@@ -59,7 +59,7 @@ try {
     ["--no-install", "zerodrive-recovery", "--version"],
     project,
   );
-  if (version !== "0.3.0") throw new Error(`Unexpected CLI version: ${version}`);
+  if (version !== "0.4.0") throw new Error(`Unexpected CLI version: ${version}`);
 
   const capsuleModule = await import(
     pathToFileURL(

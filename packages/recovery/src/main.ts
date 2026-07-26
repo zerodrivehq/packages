@@ -12,7 +12,7 @@ import {
 import { writePrivateOutput } from "./output.js";
 import { promptForRecoveryPhrase } from "./prompt.js";
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 const HELP = `ZeroDrive offline recovery
 
 Usage:

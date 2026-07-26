@@ -124,7 +124,7 @@ test("shows help and version without prompting", async () => {
 
   const version = createIo();
   assert.equal(await runRecoveryCli(["--version"], version.io), 0);
-  assert.equal(version.result().stdout, "0.3.0\n");
+  assert.equal(version.result().stdout, "0.4.0\n");
 });
 
 test("recovers capsule vault indexes as JSON", async () => {

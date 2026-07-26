@@ -38,4 +38,4 @@ Generated `dist/` directories are not committed. Format details are in [`docs/ca
 
 ## Releasing
 
-Both packages are versioned `0.3.0` for this release. After `develop` is merged into `main`, publish `@zerodrivehq/capsule` first and `@zerodrivehq/recovery` second. Feature branches are never published.
+Both packages are versioned `0.4.0` for this release. After the release PR is merged into `main`, publish `@zerodrivehq/capsule` first and `@zerodrivehq/recovery` second. Feature branches are never published.
