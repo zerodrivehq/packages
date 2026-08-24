@@ -280,6 +280,7 @@ export function createUploadQueue<
   ): boolean {
     if (!runtime.pauseRequested) return false;
     runtime.pauseRequested = false;
+    if (runtime.committed) return false;
     runtime.continuingAttempt = true;
     runtime.task.status = "paused";
     touch(runtime.task);

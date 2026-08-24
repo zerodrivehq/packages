@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createUploadQueue } from "../dist/index.js";
-import { delay, waitForSnapshot, waitForStatus } from "./helpers.ts";
+import { deferred, delay, waitForSnapshot, waitForStatus } from "./helpers.ts";
 
 test("respects the configured task concurrency", async () => {
   let active = 0;
@@ -95,6 +95,75 @@ test("commit keys serialize each vault independently", async () => {
     (snapshot) => snapshot.tasks.every((task) => task.status === "complete"),
   );
   assert.equal(maximumCommits, 2);
+});
+
+test("canceling a queued commit cleans immediately without breaking serialization", async () => {
+  const firstCommitStarted = deferred<void>();
+  const finishFirstCommit = deferred<void>();
+  const thirdCommitStarted = deferred<void>();
+  const cleanedTasks: string[] = [];
+  let activeCommits = 0;
+  let maximumCommits = 0;
+  const queue = createUploadQueue({
+    concurrency: 3,
+    serializeCommit: true,
+    adapter: {
+      prepare: async (task) => `prepared-${task.source}`,
+      upload: async (task) => `uploaded-${task.source}`,
+      commit: async (task) => {
+        activeCommits += 1;
+        maximumCommits = Math.max(maximumCommits, activeCommits);
+        try {
+          if (task.source === "first") {
+            firstCommitStarted.resolve();
+            await finishFirstCommit.promise;
+          } else if (task.source === "third") {
+            thirdCommitStarted.resolve();
+          } else {
+            assert.fail("The canceled commit must not run");
+          }
+          return `committed-${task.source}`;
+        } finally {
+          activeCommits -= 1;
+        }
+      },
+      cleanup: async (task, _artifacts, reason) => {
+        if (reason === "canceled") cleanedTasks.push(task.source);
+      },
+    },
+  });
+  const first = queue.enqueue("first", { name: "first" });
+  const second = queue.enqueue("second", { name: "second" });
+  const third = queue.enqueue("third", { name: "third" });
+  queue.start();
+  await firstCommitStarted.promise;
+  await waitForSnapshot(queue, (snapshot) =>
+    [second, third].every(
+      (id) =>
+        snapshot.tasks.find((task) => task.id === id)?.status === "committing",
+    ),
+  );
+
+  const canceling = queue.cancel(second);
+  const canceledBeforeFirstFinished = await Promise.race([
+    canceling.then(() => true),
+    delay(250).then(() => false),
+  ]);
+
+  try {
+    assert.equal(canceledBeforeFirstFinished, true);
+    assert.deepEqual(cleanedTasks, ["second"]);
+    assert.equal(queue.getTask(second)?.status, "canceled");
+    assert.equal(queue.getTask(third)?.status, "committing");
+  } finally {
+    finishFirstCommit.resolve();
+  }
+
+  assert.equal(await canceling, true);
+  await waitForStatus(queue, first, "complete");
+  await thirdCommitStarted.promise;
+  await waitForStatus(queue, third, "complete");
+  assert.equal(maximumCommits, 1);
 });
 
 test("pause prevents a waiting task from starting", async () => {

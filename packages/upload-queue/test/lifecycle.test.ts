@@ -191,3 +191,39 @@ test("pause waits for the active stage boundary and resume continues it", async 
   assert.equal(completed.attempts, 1);
   assert.equal(uploadCalls, 1);
 });
+
+test("a successful commit ignores a pending pause and completes", async () => {
+  const commitStarted = deferred<void>();
+  const finishCommit = deferred<string>();
+  const statuses: string[] = [];
+  let cleanupReason: string | undefined;
+  const queue = createUploadQueue({
+    adapter: {
+      prepare: async () => "prepared",
+      upload: async () => "uploaded",
+      commit: async () => {
+        commitStarted.resolve();
+        return finishCommit.promise;
+      },
+      cleanup: async (_task, _artifacts, reason) => {
+        cleanupReason = reason;
+      },
+    },
+  });
+  const id = queue.enqueue("source", { name: "pause-commit.bin" });
+  queue.subscribe((snapshot) => {
+    const task = snapshot.tasks.find((candidate) => candidate.id === id);
+    if (task !== undefined) statuses.push(task.status);
+  });
+  queue.start();
+  await commitStarted.promise;
+
+  assert.equal(queue.pause(id), true);
+  finishCommit.resolve("committed");
+
+  const completed = await waitForStatus(queue, id, "complete");
+  assert.equal(completed.result, "committed");
+  assert.equal(completed.progress, 1);
+  assert.equal(cleanupReason, "complete");
+  assert.equal(statuses.includes("paused"), false);
+});
