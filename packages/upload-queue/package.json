@@ -1,0 +1,39 @@
+{
+  "name": "@zerodrivehq/upload-queue",
+  "version": "0.1.0",
+  "description": "Headless, platform-neutral upload workflow orchestration",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zerodrivehq/packages.git",
+    "directory": "packages/upload-queue"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm build && node --test test/lifecycle.test.ts test/reducer.test.ts test/retry.test.ts test/scheduler.test.ts",
+    "test:browser": "pnpm build && node --test test/browser-compat.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "pnpm test"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

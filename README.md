@@ -1,6 +1,6 @@
 # ZeroDrive packages
 
-Small, auditable cryptographic and offline-recovery packages for ZeroDrive.
+Small, auditable privacy, recovery, and workflow packages for ZeroDrive.
 
 ## Packages
 
@@ -20,6 +20,10 @@ npx @zerodrivehq/recovery decrypt ./downloaded-file.zd --out ./recovered-file.pd
 
 The CLI detects capsule v1 files and existing personal-file ciphertext. It recovers personal files, vault indexes, and sharing private-key backups through hidden recovery-phrase input and never accepts the phrase through arguments, environment variables, or pipes.
 
+### `@zerodrivehq/upload-queue`
+
+A dependency-free, headless engine for prepare, upload, and commit workflows. It provides concurrency, stage-aware retry, blocking, pause/resume, cancellation, cleanup, progress snapshots, and serialized commit lanes without knowing about React, filesystems, storage providers, databases, or encryption.
+
 ## Development
 
 Node.js 24 and pnpm 11.7 are required.
@@ -38,4 +42,4 @@ Generated `dist/` directories are not committed. Format details are in [`docs/ca
 
 ## Releasing
 
-Both packages are versioned `0.4.0` for this release. After the release PR is merged into `main`, publish `@zerodrivehq/capsule` first and `@zerodrivehq/recovery` second. Feature branches are never published.
+Packages are versioned independently. Publish only packages changed by a release, after the release PR is merged into `main`. When Recovery requires a new Capsule version, publish Capsule first. Feature branches are never published.

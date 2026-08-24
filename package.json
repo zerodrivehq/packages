@@ -10,7 +10,7 @@
     "pack:check": "node scripts/check-package-contents.mjs",
     "pack:smoke": "node scripts/smoke-packed-cli.mjs",
     "test": "pnpm -r test",
-    "test:browser": "pnpm --filter @zerodrivehq/capsule test:browser",
+    "test:browser": "pnpm -r --if-present test:browser",
     "typecheck": "pnpm -r typecheck"
   },
   "engines": {
