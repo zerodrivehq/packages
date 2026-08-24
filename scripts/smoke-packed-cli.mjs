@@ -28,6 +28,7 @@ try {
   for (const packageName of [
     "@zerodrivehq/capsule",
     "@zerodrivehq/recovery",
+    "@zerodrivehq/upload-queue",
   ]) {
     run("pnpm", [
       "--filter",
@@ -41,7 +42,7 @@ try {
   const tarballs = readdirSync(directory)
     .filter((name) => name.endsWith(".tgz"))
     .map((name) => join(directory, name));
-  if (tarballs.length !== 2) throw new Error("Expected two package tarballs");
+  if (tarballs.length !== 3) throw new Error("Expected three package tarballs");
 
   mkdirSync(project);
   writeFileSync(
@@ -60,6 +61,54 @@ try {
     project,
   );
   if (version !== "0.4.0") throw new Error(`Unexpected CLI version: ${version}`);
+
+  const uploadQueueModule = await import(
+    pathToFileURL(
+      join(project, "node_modules/@zerodrivehq/upload-queue/dist/index.js"),
+    ).href
+  );
+  const lifecycle = [];
+  const uploadQueue = uploadQueueModule.createUploadQueue({
+    adapter: {
+      prepare: async (task) => {
+        lifecycle.push(`prepare:${task.name}`);
+        return `encrypted:${task.source}`;
+      },
+      upload: async (_task, prepared) => {
+        lifecycle.push(`upload:${prepared}`);
+        return { driveId: "packed-drive-id" };
+      },
+      commit: async (_task, uploaded) => {
+        lifecycle.push(`commit:${uploaded.driveId}`);
+        return uploaded.driveId;
+      },
+    },
+  });
+  const uploadTaskId = uploadQueue.enqueue("plain", { name: "packed.txt" });
+  const uploadCompleted = new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error("Packed upload queue timed out")),
+      2_000,
+    );
+    const unsubscribe = uploadQueue.subscribe((snapshot) => {
+      const task = snapshot.tasks.find(
+        (candidate) => candidate.id === uploadTaskId,
+      );
+      if (task?.status !== "complete") return;
+      clearTimeout(timeout);
+      unsubscribe();
+      resolve(task);
+    });
+  });
+  uploadQueue.start();
+  const completedUpload = await uploadCompleted;
+  if (
+    completedUpload.result !== "packed-drive-id" ||
+    lifecycle.join(",") !==
+      "prepare:packed.txt,upload:encrypted:plain,commit:packed-drive-id"
+  ) {
+    throw new Error("Packed upload queue lifecycle failed");
+  }
 
   const capsuleModule = await import(
     pathToFileURL(
@@ -147,7 +196,7 @@ try {
   const expected = Buffer.from(vector.plaintextBase64, "base64");
   if (!recovered.equals(expected)) throw new Error("Packed CLI output differs");
 
-  process.stdout.write("Packed capsule and recovery CLI smoke test passed.\n");
+  process.stdout.write("Packed package smoke tests passed.\n");
 } finally {
   rmSync(directory, { force: true, recursive: true });
 }

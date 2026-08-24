@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 const packages = [
   { name: "@zerodrivehq/capsule" },
   { name: "@zerodrivehq/recovery" },
+  { name: "@zerodrivehq/upload-queue" },
 ];
 const directory = mkdtempSync(join(tmpdir(), "zerodrive-pack-check-"));
 
